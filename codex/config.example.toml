@@ -1,0 +1,18 @@
+# Approval + sandbox defaults (see README examples)
+approval_policy = "on-request"      # ask before writes/exec
+sandbox_mode    = "workspace-write" # writes allowed in repo; no network by default
+
+# Optional: model override (Codex supports any Responses API model)
+model = "gpt-5"
+
+# Profiles for quick toggles
+[profiles.full_auto]
+approval_policy = "on-request"
+sandbox_mode    = "workspace-write"
+
+[profiles.readonly_quiet]
+approval_policy = "never"
+sandbox_mode    = "read-only"
+
+# If your org uses Zero Data Retention:
+disable_response_storage = true
