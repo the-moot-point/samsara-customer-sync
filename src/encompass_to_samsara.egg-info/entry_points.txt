@@ -1,0 +1,2 @@
+[console_scripts]
+sync-e2s = encompass_to_samsara.cli:main

@@ -38,9 +38,9 @@ class SamsaraClient:
         min_interval: float = 0.0,  # optional client-side throttle between calls
         timeout: float = 30.0,
     ) -> None:
-        token = api_token or os.getenv("SAMSARA_API_TOKEN")
+        token = api_token or os.getenv("SAMSARA_BEARER_TOKEN")
         if not token:
-            raise RuntimeError("SAMSARA_API_TOKEN is required")
+            raise RuntimeError("SAMSARA_BEARER_TOKEN is required")
         self.base_url = base_url.rstrip("/")
         self.session = requests.Session()
         self.session.headers.update(
