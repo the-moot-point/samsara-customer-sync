@@ -6,6 +6,7 @@ import responses
 
 from encompass_to_samsara.sync_daily import run_daily
 from encompass_to_samsara.samsara_client import SamsaraClient
+from encompass_to_samsara.transform import compute_fingerprint
 
 API = "https://api.samsara.com"
 
@@ -34,8 +35,9 @@ def test_daily_upsert_skip_when_unchanged(tmp_path, token_env, base_responses):
 
     # Existing matching address with same fingerprint
     # We'll compute via running once with create, then second run will skip
+    fp = compute_fingerprint("Foo", "Active", "123 A St")
     samsara_addresses = [
-        {"id":"300","name":"Foo","formattedAddress":"123 A St","externalIds":{"encompass_id":"C1","ENCOMPASS_STATUS":"Active","ENCOMPASS_MANAGED":"1","ENCOMPASS_FINGERPRINT":"dummy"}},
+        {"id":"300","name":"Foo","formattedAddress":"123 A St","externalIds":{"encompass_id":"C1","ENCOMPASS_STATUS":"Active","ENCOMPASS_MANAGED":"1","ENCOMPASS_FINGERPRINT":fp}},
     ]
 
     with base_responses as rsps:
@@ -45,7 +47,7 @@ def test_daily_upsert_skip_when_unchanged(tmp_path, token_env, base_responses):
         # Seed state
         os.makedirs(out_dir, exist_ok=True)
         with open(out_dir/"state.json","w",encoding="utf-8") as f:
-            json.dump({"fingerprints":{"300":"dummy"},"candidate_deletes":{}}, f)
+            json.dump({"fingerprints":{"300":fp},"candidate_deletes":{}}, f)
 
         run_daily(
             client,

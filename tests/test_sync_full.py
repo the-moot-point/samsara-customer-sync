@@ -36,7 +36,7 @@ def test_full_upsert_and_quarantine(tmp_path, token_env, base_responses):
 
     # Existing Samsara addresses: one managed orphan and one unmanaged candidate
     samsara_addresses = [
-        {"id":"100","name":"Orphan1","formattedAddress":"XYZ","externalIds":{"encompass_id":"OLD"},"tagIds":["1"]},  # managed orphan
+        {"id":"100","name":"Orphan1","formattedAddress":"XYZ","externalIds":{"EncompassId":"OLD"},"tagIds":["1"]},  # managed orphan
     ]
 
     with base_responses as rsps:
