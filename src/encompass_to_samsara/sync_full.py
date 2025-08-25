@@ -14,6 +14,11 @@ from .reporting import Action, ensure_out_dir, write_jsonl, write_csv, summarize
 
 LOG = logging.getLogger(__name__)
 
+
+def _ext_encompass_id(ext: Dict[str, Any]) -> str | None:
+    """Return the Encompass external ID if present."""
+    return ext.get("encompass_id") or ext.get("ENCOMPASS_ID") or ext.get("EncompassId")
+
 def run_full(
     client: SamsaraClient,
     *, encompass_csv: str, warehouses_path: str, out_dir: str,
@@ -102,7 +107,7 @@ def run_full(
                 needs_scope = True
             if ext.get("ENCOMPASS_MANAGED") != "1":
                 needs_scope = True
-            if ext.get("encompass_id") != r.encompass_id:
+            if _ext_encompass_id(ext) != r.encompass_id:
                 needs_scope = True
             if needs_scope and "externalIds" not in diff:
                 # inject ext and tags
@@ -157,7 +162,7 @@ def run_full(
         if not is_managed(addr, managed_tag_id):
             continue
         ext = addr.get("externalIds") or {}
-        eid = str(ext.get("encompass_id") or ext.get("ENCOMPASS_ID") or "")
+        eid = str(_ext_encompass_id(ext) or "")
         if eid and eid in src_eids:
             continue
         # Orphan

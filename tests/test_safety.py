@@ -42,6 +42,7 @@ def address_samples():
         "warehouse_name": {"id": "999", "name": "Main"},
         "not_warehouse": {"id": "999", "name": "Unknown"},
         "managed_external": {"externalIds": {"encompass_id": "abc"}},
+        "managed_external_alias": {"externalIds": {"EncompassId": "def"}},
         "managed_tag": {"tags": [{"id": "M1"}]},
         "unmanaged": {"tags": [{"id": "X"}]},
     }
@@ -69,6 +70,7 @@ def test_is_warehouse(address_samples, warehouse_csv):
 def test_is_managed(address_samples):
     managed_tag_id = "M1"
     assert is_managed(address_samples["managed_external"], managed_tag_id)
+    assert is_managed(address_samples["managed_external_alias"], managed_tag_id)
     assert is_managed(address_samples["managed_tag"], managed_tag_id)
     assert not is_managed(address_samples["unmanaged"], managed_tag_id)
 

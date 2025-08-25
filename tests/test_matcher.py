@@ -77,10 +77,12 @@ def test_index_addresses_by_external_id():
     addrs = [
         {"id": "a", "externalIds": {"encompass_id": "123"}},
         {"id": "b", "externalIds": {"ENCOMPASS_ID": "456"}},
-        {"id": "c", "externalIds": {"other": "789"}},
+        {"id": "c", "externalIds": {"other": "999"}},
+        {"id": "d", "externalIds": {"EncompassId": "789"}},
     ]
     idx = index_addresses_by_external_id(addrs)
     assert idx["123"]["id"] == "a"
     assert idx["456"]["id"] == "b"
-    assert "789" not in idx
-    assert len(idx) == 2
+    assert idx["789"]["id"] == "d"
+    assert "999" not in idx
+    assert len(idx) == 3
