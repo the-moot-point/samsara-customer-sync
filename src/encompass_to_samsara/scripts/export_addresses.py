@@ -1,7 +1,7 @@
 import json
 import os
 
-from encompass_to_samsara.samsara_client import SamsaraClient
+from ..samsara_client import SamsaraClient
 
 
 def main() -> None:

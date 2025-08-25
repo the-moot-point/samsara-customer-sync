@@ -4,12 +4,8 @@
 from __future__ import annotations
 
 import json
-import pathlib
-import sys
 
-sys.path.append(str(pathlib.Path(__file__).resolve().parents[1] / "src"))
-
-from encompass_to_samsara.samsara_client import SamsaraClient
+from ..samsara_client import SamsaraClient
 
 
 def main() -> None:
