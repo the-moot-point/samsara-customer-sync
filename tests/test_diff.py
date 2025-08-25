@@ -1,0 +1,57 @@
+def test_diff_address_returns_only_changes():
+    from encompass_to_samsara.transform import diff_address
+
+    existing = {
+        "name": "Old Name",
+        "formattedAddress": "123 Main St",
+        "geofence": {
+            "radiusMeters": 50,
+            "center": {"latitude": 10.0, "longitude": 20.0},
+        },
+        "tagIds": ["1", "2"],
+        "externalIds": {
+            "encompass_id": "abc",
+            "ENCOMPASS_STATUS": "Active",
+            "ENCOMPASS_MANAGED": "1",
+            "ENCOMPASS_FINGERPRINT": "fp1",
+            "OTHER": "keep",
+        },
+    }
+
+    desired = {
+        "name": "New Name",
+        "formattedAddress": "456 Elm St",
+        "geofence": {
+            "radiusMeters": 75,
+            "center": {"latitude": 11.0, "longitude": 21.0},
+        },
+        "tagIds": ["1", "3"],
+        "externalIds": {
+            "encompass_id": "abc",
+            "ENCOMPASS_STATUS": "Inactive",
+            "ENCOMPASS_MANAGED": "1",
+            "ENCOMPASS_FINGERPRINT": "fp2",
+            "ENCOMPASS_TYPE": "Retail",
+        },
+    }
+
+    expected = {
+        "name": "New Name",
+        "formattedAddress": "456 Elm St",
+        "geofence": {
+            "radiusMeters": 75,
+            "center": {"latitude": 11.0, "longitude": 21.0},
+        },
+        "tagIds": ["1", "3"],
+        "externalIds": {
+            "encompass_id": "abc",
+            "ENCOMPASS_STATUS": "Inactive",
+            "ENCOMPASS_MANAGED": "1",
+            "ENCOMPASS_FINGERPRINT": "fp2",
+            "ENCOMPASS_TYPE": "Retail",
+            "OTHER": "keep",
+        },
+    }
+
+    patch = diff_address(existing, desired)
+    assert patch == expected
