@@ -1,4 +1,4 @@
-# Encompass → Samsara Sync (`sync-e2s`)
+# Samsara Customer Sync
 
 A production-ready Python 3.11+ CLI that keeps **Samsara Addresses** in lockstep with **Encompass**
 (Encompass is the source of truth). Supports a **one-time full refresh** and **daily incremental**
@@ -16,7 +16,7 @@ sync. Safe-by-default (dry-run), idempotent (fingerprints), auditable (reports +
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-cp .env.example .env   # fill token
+cp .env.example .env   # set SAMSARA_BEARER_TOKEN
 make test              # run tests
 make full-dry          # dry-run full refresh using sample paths
 # If the diff looks good:
@@ -27,8 +27,17 @@ make full-apply        # applies changes (and allows deletes per flags)
 
 Create a `.env` or export environment variables:
 
-- `SAMSARA_API_TOKEN` (required): API token for Samsara.
+- `SAMSARA_BEARER_TOKEN` (required): API token for Samsara.
 - `E2S_DEFAULT_RADIUS_METERS` (optional, default 50): geofence radius for new/updated addresses.
+
+### Export current Samsara addresses
+
+```bash
+export SAMSARA_BEARER_TOKEN=your_token
+python scripts/export_addresses.py
+```
+
+The script writes all existing Samsara addresses to `addresses.json`.
 
 ### CLI
 
