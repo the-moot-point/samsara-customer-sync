@@ -29,6 +29,50 @@ def test_probable_match_by_distance():
     assert m and m["id"] in ("10","11")
 
 
+def test_probable_match_tie_break_by_address():
+    """When distances tie, prefer candidate with matching address."""
+    row_name = "Foo"
+    row_addr = "123 Main St"
+    cand = [
+        {
+            "id": "1",
+            "name": "Other",
+            "formattedAddress": "123 Main St",
+            "geofence": {"center": {"latitude": 30.0, "longitude": -97.0}},
+        },
+        {
+            "id": "2",
+            "name": "Foo",
+            "formattedAddress": "456 Other",
+            "geofence": {"center": {"latitude": 30.0, "longitude": -97.0}},
+        },
+    ]
+    m = probable_match(row_name, row_addr, 30.0, -97.0, cand, distance_threshold_m=25.0)
+    assert m and m["id"] == "1"
+
+
+def test_probable_match_tie_break_by_name():
+    """When distances tie and no address matches, use name similarity."""
+    row_name = "Foo"
+    row_addr = "123 Main St"
+    cand = [
+        {
+            "id": "1",
+            "name": "Foo",
+            "formattedAddress": "456 Other",
+            "geofence": {"center": {"latitude": 30.0, "longitude": -97.0}},
+        },
+        {
+            "id": "2",
+            "name": "Bar",
+            "formattedAddress": "789 Else",
+            "geofence": {"center": {"latitude": 30.0, "longitude": -97.0}},
+        },
+    ]
+    m = probable_match(row_name, row_addr, 30.0, -97.0, cand, distance_threshold_m=25.0)
+    assert m and m["id"] == "1"
+
+
 def test_index_addresses_by_external_id():
     addrs = [
         {"id": "a", "externalIds": {"encompass_id": "123"}},
