@@ -1,4 +1,8 @@
-from encompass_to_samsara.matcher import probable_match, haversine_m
+from encompass_to_samsara.matcher import (
+    index_addresses_by_external_id,
+    probable_match,
+    haversine_m,
+)
 
 def test_haversine_reasonable():
     d = haversine_m(30.2672, -97.7431, 30.2672, -97.7431)
@@ -23,3 +27,16 @@ def test_probable_match_by_distance():
     ]
     m = probable_match(row_name, row_addr, 30.00009, -97.00009, cand, distance_threshold_m=25.0)
     assert m and m["id"] in ("10","11")
+
+
+def test_index_addresses_by_external_id():
+    addrs = [
+        {"id": "a", "externalIds": {"encompass_id": "123"}},
+        {"id": "b", "externalIds": {"ENCOMPASS_ID": "456"}},
+        {"id": "c", "externalIds": {"other": "789"}},
+    ]
+    idx = index_addresses_by_external_id(addrs)
+    assert idx["123"]["id"] == "a"
+    assert idx["456"]["id"] == "b"
+    assert "789" not in idx
+    assert len(idx) == 2
