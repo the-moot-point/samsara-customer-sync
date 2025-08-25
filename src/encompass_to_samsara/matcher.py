@@ -36,8 +36,12 @@ def probable_match(
 ) -> Optional[dict]:
     """
     Try to find a unique match among candidates by:
-      1) exact match on normalized (name + address), else
-      2) unique address within distance threshold from row lat/lon
+      1) exact match on normalized ``name`` + ``address``
+      2) otherwise look for candidates within ``distance_threshold_m`` of
+         ``row_lat``/``row_lon`` and pick the closest one. If multiple
+         candidates are at the same minimum distance, prefer a candidate with
+         a matching canonical address and then one with a matching normalized
+         name.
     """
     if not candidates:
         return None
@@ -57,6 +61,23 @@ def probable_match(
             d = haversine_m(float(row_lat), float(row_lon), float(lat), float(lon))
             if d <= distance_threshold_m:
                 within.append((a, d))
-        if len(within) == 1:
-            return within[0][0]
+        if within:
+            min_d = min(d for _, d in within)
+            closest = [a for a, d in within if d == min_d]
+            if len(closest) == 1:
+                return closest[0]
+            row_addr_norm = canonical_address(row_addr)
+            addr_matches = [
+                a
+                for a in closest
+                if canonical_address(a.get("formattedAddress") or "") == row_addr_norm
+            ]
+            if len(addr_matches) == 1:
+                return addr_matches[0]
+            row_name_norm = normalize(row_name)
+            name_matches = [
+                a for a in closest if normalize(a.get("name") or "") == row_name_norm
+            ]
+            if len(name_matches) == 1:
+                return name_matches[0]
     return None
