@@ -34,7 +34,7 @@ Create a `.env` or export environment variables:
 
 ```bash
 export SAMSARA_BEARER_TOKEN=your_token
-python scripts/export_addresses.py
+python -m encompass_to_samsara.scripts.export_addresses
 ```
 
 The script writes all existing Samsara addresses to `addresses.json`.

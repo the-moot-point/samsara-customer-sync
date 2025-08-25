@@ -1,20 +1,10 @@
 import json
-import importlib.util
-from pathlib import Path
+
 from encompass_to_samsara.samsara_client import SamsaraClient
-
-SCRIPTS_DIR = Path(__file__).resolve().parents[1] / "scripts"
-
-def load_script(name: str):
-    spec = importlib.util.spec_from_file_location(name, SCRIPTS_DIR / f"{name}.py")
-    module = importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
-    spec.loader.exec_module(module)
-    return module
+from encompass_to_samsara.scripts import export_addresses, export_tags
 
 
 def test_export_tags(monkeypatch, tmp_path):
-    export_tags = load_script("export_tags")
     sample_tags = [
         {"id": "1", "name": "Alpha"},
         {"id": "2", "name": "Bravo"},
@@ -34,7 +24,6 @@ def test_export_tags(monkeypatch, tmp_path):
 
 
 def test_export_addresses(monkeypatch, tmp_path):
-    export_addresses = load_script("export_addresses")
     sample_addresses = [
         {
             "id": "100",
