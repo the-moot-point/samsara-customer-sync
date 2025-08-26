@@ -1,28 +1,38 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
+from .matcher import find_by_name, index_addresses_by_external_id, probable_match
+from .reporting import Action, ensure_out_dir, summarize, write_csv, write_jsonl
+from .safety import eligible_for_hard_delete, is_managed, is_warehouse, load_warehouses, now_utc_iso
 from .samsara_client import SamsaraClient
-from .tags import MANAGED_BY_TAG, CANDIDATE_DELETE_TAG, build_tag_index, resolve_tag_id
-from .transform import read_encompass_csv, to_address_payload, diff_address, compute_fingerprint, validate_lat_lon
-from .matcher import index_addresses_by_external_id, probable_match
-from .safety import load_warehouses, is_warehouse, is_managed, now_utc_iso, eligible_for_hard_delete
 from .state import load_state, save_state
-from .reporting import Action, ensure_out_dir, write_jsonl, write_csv, summarize
+from .tags import CANDIDATE_DELETE_TAG, MANAGED_BY_TAG, build_tag_index, resolve_tag_id
+from .transform import (
+    diff_address,
+    read_encompass_csv,
+    to_address_payload,
+)
 
 LOG = logging.getLogger(__name__)
 
 
-def _ext_encompass_id(ext: Dict[str, Any]) -> str | None:
+def _ext_encompass_id(ext: dict[str, Any]) -> str | None:
     """Return the Encompass external ID if present."""
     return ext.get("encompass_id") or ext.get("ENCOMPASS_ID") or ext.get("EncompassId")
 
+
 def run_full(
     client: SamsaraClient,
-    *, encompass_csv: str, warehouses_path: str, out_dir: str,
-    radius_m: int, apply: bool, retention_days: int, confirm_delete: bool,
+    *,
+    encompass_csv: str,
+    warehouses_path: str,
+    out_dir: str,
+    radius_m: int,
+    apply: bool,
+    retention_days: int,
+    confirm_delete: bool,
 ) -> None:
     ensure_out_dir(out_dir)
     actions: list[Action] = []
@@ -71,18 +81,27 @@ def run_full(
     for r in src_rows:
         if not r.encompass_id:
             continue
-        desired = to_address_payload(r, tags_index, radius_m=radius_m, managed_tag_name=MANAGED_BY_TAG)
+        desired = to_address_payload(
+            r, tags_index, radius_m=radius_m, managed_tag_name=MANAGED_BY_TAG
+        )
         desired_fp = desired["externalIds"]["ENCOMPASS_FINGERPRINT"]
         existing = by_eid.get(r.encompass_id)
 
         # If no direct match, try probable match among non-managed addresses only.
         if not existing:
             candidates = [a for a in samsara_addrs if not is_managed(a, managed_tag_id)]
-            pm = probable_match(r.name, r.address, r.lat, r.lon, candidates, distance_threshold_m=25.0)
+            pm = probable_match(
+                r.name, r.address, r.lat, r.lon, candidates, distance_threshold_m=25.0
+            )
             if pm:
                 # Attach encompass id and markers
                 existing = pm
                 by_eid[r.encompass_id] = existing  # attach for future lookups
+            elif candidates:
+                nm = find_by_name(r.name, candidates)
+                if nm:
+                    existing = nm
+                    by_eid[r.encompass_id] = existing
 
         if existing:
             # Merge: ensure scope markers (tag + external ids) are included in desired diff computation
@@ -122,15 +141,38 @@ def run_full(
                 if set(tag_ids) != set(d_tags):
                     diff["tagIds"] = d_tags
 
-            if not diff or (fp_old == desired_fp and len(diff.keys()) == 1 and "tagIds" in diff and set(tag_ids) == set(diff["tagIds"])):
+            if not diff or (
+                fp_old == desired_fp
+                and len(diff.keys()) == 1
+                and "tagIds" in diff
+                and set(tag_ids) == set(diff["tagIds"])
+            ):
                 # unchanged
                 unchanged_ids.append(str(existing.get("id")))
-                actions.append(Action(at=now_utc_iso(), kind="skip", address_id=str(existing.get("id")), encompass_id=r.encompass_id, reason="unchanged"))
+                actions.append(
+                    Action(
+                        at=now_utc_iso(),
+                        kind="skip",
+                        address_id=str(existing.get("id")),
+                        encompass_id=r.encompass_id,
+                        reason="unchanged",
+                    )
+                )
             else:
                 if apply:
                     client.patch_address(str(existing.get("id")), diff)
                 updated_ids.append(str(existing.get("id")))
-                actions.append(Action(at=now_utc_iso(), kind="update", address_id=str(existing.get("id")), encompass_id=r.encompass_id, reason="update", payload=diff, diff=diff))
+                actions.append(
+                    Action(
+                        at=now_utc_iso(),
+                        kind="update",
+                        address_id=str(existing.get("id")),
+                        encompass_id=r.encompass_id,
+                        reason="update",
+                        payload=diff,
+                        diff=diff,
+                    )
+                )
                 # update state fingerprint
                 state["fingerprints"][str(existing.get("id"))] = desired_fp
         else:
@@ -141,16 +183,27 @@ def run_full(
             else:
                 aid = None
             created_ids.append(aid or "(dry)")
-            actions.append(Action(at=now_utc_iso(), kind="create", address_id=aid, encompass_id=r.encompass_id, reason="create", payload=desired))
+            actions.append(
+                Action(
+                    at=now_utc_iso(),
+                    kind="create",
+                    address_id=aid,
+                    encompass_id=r.encompass_id,
+                    reason="create",
+                    payload=desired,
+                )
+            )
             if aid:
                 state["fingerprints"][aid] = desired_fp
 
         # prepare dry-run diff row
-        dry_rows.append({
-            "encompass_id": r.encompass_id,
-            "name": r.name,
-            "action": actions[-1].kind if actions else "skip",
-        })
+        dry_rows.append(
+            {
+                "encompass_id": r.encompass_id,
+                "name": r.name,
+                "action": actions[-1].kind if actions else "skip",
+            }
+        )
 
     # Orphan detection: managed samsara addresses not in src_eids
     for addr in samsara_addrs:
@@ -182,7 +235,16 @@ def run_full(
                 patch = {"tagIds": tag_ids + [candidate_tag_id]}
                 if apply:
                     client.patch_address(aid, patch)
-                actions.append(Action(at=now_utc_iso(), kind="quarantine", address_id=aid, encompass_id=eid or None, reason="orphan_candidate_delete", payload=patch))
+                actions.append(
+                    Action(
+                        at=now_utc_iso(),
+                        kind="quarantine",
+                        address_id=aid,
+                        encompass_id=eid or None,
+                        reason="orphan_candidate_delete",
+                        payload=patch,
+                    )
+                )
         else:
             # fallback to externalIds marker
             ext2 = addr.get("externalIds") or {}
@@ -190,7 +252,16 @@ def run_full(
                 patch = {"externalIds": ext2 | {"ENCOMPASS_DELETE_CANDIDATE": "1"}}
                 if apply:
                     client.patch_address(aid, patch)
-                actions.append(Action(at=now_utc_iso(), kind="quarantine", address_id=aid, encompass_id=eid or None, reason="orphan_candidate_delete_extid", payload=patch))
+                actions.append(
+                    Action(
+                        at=now_utc_iso(),
+                        kind="quarantine",
+                        address_id=aid,
+                        encompass_id=eid or None,
+                        reason="orphan_candidate_delete_extid",
+                        payload=patch,
+                    )
+                )
 
         # record in state candidate_deletes
         if aid not in state.get("candidate_deletes", {}):
@@ -200,7 +271,15 @@ def run_full(
         if confirm_delete and eligible_for_hard_delete(aid, state, retention_days):
             if apply:
                 client.delete_address(aid)
-            actions.append(Action(at=now_utc_iso(), kind="delete", address_id=aid, encompass_id=eid or None, reason="hard_delete_after_retention"))
+            actions.append(
+                Action(
+                    at=now_utc_iso(),
+                    kind="delete",
+                    address_id=aid,
+                    encompass_id=eid or None,
+                    reason="hard_delete_after_retention",
+                )
+            )
             # cleanup state
             state["candidate_deletes"].pop(aid, None)
             state["fingerprints"].pop(aid, None)

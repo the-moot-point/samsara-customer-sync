@@ -2,23 +2,24 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import Dict, List, Optional, Tuple
 
-from .transform import normalize, canonical_address
+from .transform import canonical_address, normalize
 
 LOG = logging.getLogger(__name__)
+
 
 def haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     R = 6371000.0
     phi1, phi2 = math.radians(lat1), math.radians(lat2)
     dphi = math.radians(lat2 - lat1)
     dlambda = math.radians(lon2 - lon1)
-    a = math.sin(dphi/2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda/2)**2
+    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return R * c
 
-def index_addresses_by_external_id(addresses: List[dict]) -> Dict[str, dict]:
-    idx: Dict[str, dict] = {}
+
+def index_addresses_by_external_id(addresses: list[dict]) -> dict[str, dict]:
+    idx: dict[str, dict] = {}
     for a in addresses:
         ext = a.get("externalIds") or {}
         eid = ext.get("encompass_id") or ext.get("ENCOMPASS_ID") or ext.get("EncompassId")
@@ -26,14 +27,27 @@ def index_addresses_by_external_id(addresses: List[dict]) -> Dict[str, dict]:
             idx[str(eid)] = a
     return idx
 
+
+def find_by_name(row_name: str, candidates: list[dict]) -> dict | None:
+    """Return unique candidate whose normalized name matches ``row_name``."""
+
+    if not row_name or not candidates:
+        return None
+    row_norm = normalize(row_name)
+    matches = [a for a in candidates if normalize(a.get("name") or "") == row_norm]
+    if len(matches) == 1:
+        return matches[0]
+    return None
+
+
 def probable_match(
     row_name: str,
     row_addr: str,
     row_lat: float | None,
     row_lon: float | None,
-    candidates: List[dict],
+    candidates: list[dict],
     distance_threshold_m: float = 25.0,
-) -> Optional[dict]:
+) -> dict | None:
     """
     Try to find a unique match among candidates by:
       1) exact match on normalized ``name`` + ``address``
@@ -46,7 +60,12 @@ def probable_match(
     if not candidates:
         return None
     row_key = f"{normalize(row_name)}|{canonical_address(row_addr)}"
-    exact = [a for a in candidates if f"{normalize(a.get('name') or '')}|{canonical_address(a.get('formattedAddress') or '')}" == row_key]
+    exact = [
+        a
+        for a in candidates
+        if f"{normalize(a.get('name') or '')}|{canonical_address(a.get('formattedAddress') or '')}"
+        == row_key
+    ]
     if len(exact) == 1:
         return exact[0]
     if row_lat is not None and row_lon is not None:
@@ -75,9 +94,7 @@ def probable_match(
             if len(addr_matches) == 1:
                 return addr_matches[0]
             row_name_norm = normalize(row_name)
-            name_matches = [
-                a for a in closest if normalize(a.get("name") or "") == row_name_norm
-            ]
+            name_matches = [a for a in closest if normalize(a.get("name") or "") == row_name_norm]
             if len(name_matches) == 1:
                 return name_matches[0]
     return None
