@@ -35,3 +35,29 @@ def test_request_retries_on_429(monkeypatch, client):
     assert mock_req.call_count == 2
     sleep_mock.assert_called_once()
     assert sleep_mock.call_args[0][0] == pytest.approx(client.retry.base_delay)
+
+
+def test_list_addresses_cursor_pagination(monkeypatch, client):
+    r1 = make_response(
+        200,
+        {
+            "data": [{"id": "1"}, {"id": "2"}],
+            "pagination": {"hasNextPage": True, "endCursor": "abc"},
+        },
+    )
+    r2 = make_response(
+        200,
+        {
+            "data": [{"id": "3"}],
+            "pagination": {"hasNextPage": False, "endCursor": None},
+        },
+    )
+
+    mock_req = Mock(side_effect=[r1, r2])
+    monkeypatch.setattr(requests.Session, "request", mock_req)
+
+    items = client.list_addresses(limit=2)
+
+    assert items == [{"id": "1"}, {"id": "2"}, {"id": "3"}]
+    assert mock_req.call_count == 2
+    assert mock_req.call_args_list[1][1]["params"]["after"] == "abc"
