@@ -37,7 +37,7 @@ def cli() -> None:
     default=lambda: int(os.getenv("E2S_DEFAULT_RADIUS_METERS", "50")),
     show_default=True,
 )
-@click.option("--retention-days", default=30, show_default=True)
+@click.option("--retention-days", default=30, show_default=True, type=int)
 @click.option("--confirm-delete", is_flag=True, help="Allow hard deletes after retention window.")
 @click.option("--apply", is_flag=True, help="Apply changes. Without this flag, dry-run only.")
 def full_cmd(
@@ -71,7 +71,7 @@ def full_cmd(
     default=lambda: int(os.getenv("E2S_DEFAULT_RADIUS_METERS", "50")),
     show_default=True,
 )
-@click.option("--retention-days", default=30, show_default=True)
+@click.option("--retention-days", default=30, show_default=True, type=int)
 @click.option("--confirm-delete", is_flag=True, help="Allow hard deletes after retention window.")
 @click.option("--apply", is_flag=True, help="Apply changes. Without this flag, dry-run only.")
 def daily_cmd(
