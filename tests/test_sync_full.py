@@ -90,7 +90,7 @@ def test_full_upsert_and_quarantine(tmp_path, token_env, base_responses):
 
     # Verify artifacts
     with open(out_dir / "actions.jsonl", encoding="utf-8") as f:
-        acts = [json.loads(l) for l in f]
+        acts = [json.loads(line) for line in f]
     kinds = [a["kind"] for a in acts]
     assert kinds.count("create") == 2
     assert "quarantine" in kinds
@@ -168,5 +168,48 @@ def test_reuse_address_by_name(tmp_path, token_env, base_responses):
         assert body["externalIds"]["encompass_id"] == "C1"
 
     with open(out_dir / "actions.jsonl", encoding="utf-8") as f:
-        acts = [json.loads(l) for l in f]
+        acts = [json.loads(line) for line in f]
     assert acts[0]["kind"] == "update"
+
+
+def test_full_skip_inactive_status(tmp_path, token_env, base_responses):
+    source_rows = [
+        {
+            "Customer ID": "C1",
+            "Customer Name": "Foo",
+            "Account Status": "Inactive",
+            "Latitude": "30.1",
+            "Longitude": "-97.7",
+            "Report Company Address": "123 A St",
+            "Location": "Austin",
+            "Company": "JECO",
+            "Customer Type": "Retail",
+        }
+    ]
+    src_csv = tmp_path / "encompass_full.csv"
+    write_csv(src_csv, source_rows)
+
+    wh_csv = tmp_path / "warehouses.csv"
+    with open(wh_csv, "w", encoding="utf-8") as f:
+        f.write("samsara_id,name\n")
+
+    out_dir = tmp_path / "out"
+
+    with base_responses as rsps:
+        rsps.add(responses.GET, f"{API}/addresses", json={"addresses": []}, status=200)
+        client = SamsaraClient(api_token="test-token")
+        run_full(
+            client,
+            encompass_csv=str(src_csv),
+            warehouses_path=str(wh_csv),
+            out_dir=str(out_dir),
+            radius_m=50,
+            apply=True,
+            retention_days=30,
+            confirm_delete=False,
+        )
+
+    with open(out_dir / "actions.jsonl", encoding="utf-8") as f:
+        acts = [json.loads(line) for line in f]
+    assert acts[0]["kind"] == "skip" and acts[0]["reason"] == "inactive_status"
+    assert all(c.request.method == "GET" for c in rsps.calls)

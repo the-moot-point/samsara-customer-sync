@@ -17,10 +17,17 @@ from .transform import (
 
 LOG = logging.getLogger(__name__)
 
+
 def run_daily(
     client: SamsaraClient,
-    *, encompass_delta: str, warehouses_path: str, out_dir: str,
-    radius_m: int, apply: bool, retention_days: int, confirm_delete: bool,
+    *,
+    encompass_delta: str,
+    warehouses_path: str,
+    out_dir: str,
+    radius_m: int,
+    apply: bool,
+    retention_days: int,
+    confirm_delete: bool,
 ) -> None:
     ensure_out_dir(out_dir)
     actions: list[Action] = []
@@ -44,12 +51,27 @@ def run_daily(
 
     for r in rows:
         action = (r.action or "upsert").lower()
+        if r.status.strip().upper() == "INACTIVE" and action != "delete":
+            actions.append(
+                Action(
+                    at=now_utc_iso(),
+                    kind="skip",
+                    address_id=None,
+                    encompass_id=r.encompass_id,
+                    reason="inactive_status",
+                )
+            )
+            continue
         existing = by_eid.get(r.encompass_id)
         if action not in ("upsert", "delete"):
             action = "upsert"
 
         if action == "delete":
-            if existing and not is_warehouse(existing, wh_ids, wh_names) and is_managed(existing, managed_tag_id):
+            if (
+                existing
+                and not is_warehouse(existing, wh_ids, wh_names)
+                and is_managed(existing, managed_tag_id)
+            ):
                 aid = str(existing.get("id"))
                 # quarantine
                 if candidate_tag_id:
@@ -67,14 +89,32 @@ def run_daily(
                         patch = {"tagIds": tag_ids + [candidate_tag_id]}
                         if apply:
                             client.patch_address(aid, patch)
-                        actions.append(Action(at=now_utc_iso(), kind="quarantine", address_id=aid, encompass_id=r.encompass_id, reason="delta_delete_candidate", payload=patch))
+                        actions.append(
+                            Action(
+                                at=now_utc_iso(),
+                                kind="quarantine",
+                                address_id=aid,
+                                encompass_id=r.encompass_id,
+                                reason="delta_delete_candidate",
+                                payload=patch,
+                            )
+                        )
                 else:
                     ext = clean_external_ids(existing.get("externalIds") or {})
                     if ext.get("ENCOMPASS_DELETE_CANDIDATE") != "1":
                         patch = {"externalIds": ext | {"ENCOMPASS_DELETE_CANDIDATE": "1"}}
                         if apply:
                             client.patch_address(aid, patch)
-                        actions.append(Action(at=now_utc_iso(), kind="quarantine", address_id=aid, encompass_id=r.encompass_id, reason="delta_delete_candidate_extid", payload=patch))
+                        actions.append(
+                            Action(
+                                at=now_utc_iso(),
+                                kind="quarantine",
+                                address_id=aid,
+                                encompass_id=r.encompass_id,
+                                reason="delta_delete_candidate_extid",
+                                payload=patch,
+                            )
+                        )
                 # record state candidate
                 if aid not in state.get("candidate_deletes", {}):
                     state["candidate_deletes"][aid] = now_utc_iso()
@@ -82,41 +122,96 @@ def run_daily(
                 if confirm_delete and eligible_for_hard_delete(aid, state, retention_days):
                     if apply:
                         client.delete_address(aid)
-                    actions.append(Action(at=now_utc_iso(), kind="delete", address_id=aid, encompass_id=r.encompass_id, reason="delta_hard_delete_after_retention"))
+                    actions.append(
+                        Action(
+                            at=now_utc_iso(),
+                            kind="delete",
+                            address_id=aid,
+                            encompass_id=r.encompass_id,
+                            reason="delta_hard_delete_after_retention",
+                        )
+                    )
                     state["candidate_deletes"].pop(aid, None)
                     state["fingerprints"].pop(aid, None)
             else:
-                actions.append(Action(at=now_utc_iso(), kind="skip", address_id=None, encompass_id=r.encompass_id, reason="delete_noop_not_found_or_protected"))
+                actions.append(
+                    Action(
+                        at=now_utc_iso(),
+                        kind="skip",
+                        address_id=None,
+                        encompass_id=r.encompass_id,
+                        reason="delete_noop_not_found_or_protected",
+                    )
+                )
             continue
 
         # UPSERT
-        desired = to_address_payload(r, tags_index, radius_m=radius_m, managed_tag_name=MANAGED_BY_TAG)
+        desired = to_address_payload(
+            r, tags_index, radius_m=radius_m, managed_tag_name=MANAGED_BY_TAG
+        )
         desired_fp = desired["externalIds"]["ENCOMPASS_FINGERPRINT"]
         existing_fp = None
         if existing:
             eid = str(existing.get("id"))
-            existing_fp = (existing.get("externalIds") or {}).get("ENCOMPASS_FINGERPRINT") or state["fingerprints"].get(eid)
+            existing_fp = (existing.get("externalIds") or {}).get("ENCOMPASS_FINGERPRINT") or state[
+                "fingerprints"
+            ].get(eid)
 
         if existing:
             # Skip if fingerprint unchanged
             if existing_fp == desired_fp:
-                actions.append(Action(at=now_utc_iso(), kind="skip", address_id=str(existing.get("id")), encompass_id=r.encompass_id, reason="unchanged_fingerprint"))
+                actions.append(
+                    Action(
+                        at=now_utc_iso(),
+                        kind="skip",
+                        address_id=str(existing.get("id")),
+                        encompass_id=r.encompass_id,
+                        reason="unchanged_fingerprint",
+                    )
+                )
                 continue
             diff = diff_address(existing, desired)
             if diff:
                 if apply:
                     client.patch_address(str(existing.get("id")), diff)
-                actions.append(Action(at=now_utc_iso(), kind="update", address_id=str(existing.get("id")), encompass_id=r.encompass_id, reason="delta_update", payload=diff, diff=diff))
+                actions.append(
+                    Action(
+                        at=now_utc_iso(),
+                        kind="update",
+                        address_id=str(existing.get("id")),
+                        encompass_id=r.encompass_id,
+                        reason="delta_update",
+                        payload=diff,
+                        diff=diff,
+                    )
+                )
                 state["fingerprints"][str(existing.get("id"))] = desired_fp
             else:
-                actions.append(Action(at=now_utc_iso(), kind="skip", address_id=str(existing.get("id")), encompass_id=r.encompass_id, reason="no_diff"))
+                actions.append(
+                    Action(
+                        at=now_utc_iso(),
+                        kind="skip",
+                        address_id=str(existing.get("id")),
+                        encompass_id=r.encompass_id,
+                        reason="no_diff",
+                    )
+                )
         else:
             if apply:
                 created = client.create_address(desired)
                 aid = str(created.get("id") or "")
             else:
                 aid = None
-            actions.append(Action(at=now_utc_iso(), kind="create", address_id=aid, encompass_id=r.encompass_id, reason="delta_create", payload=desired))
+            actions.append(
+                Action(
+                    at=now_utc_iso(),
+                    kind="create",
+                    address_id=aid,
+                    encompass_id=r.encompass_id,
+                    reason="delta_create",
+                    payload=desired,
+                )
+            )
             if aid:
                 state["fingerprints"][aid] = desired_fp
 

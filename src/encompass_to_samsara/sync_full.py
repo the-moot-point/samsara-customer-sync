@@ -69,7 +69,6 @@ def run_full(
     samsara_addrs = client.list_addresses()
     # Index by encompass_id and by id
     by_eid = index_addresses_by_external_id(samsara_addrs)
-    by_id = {str(a.get("id")): a for a in samsara_addrs if a.get("id")}
 
     # Build set of encompass ids from source
     src_eids = set(r.encompass_id for r in src_rows if r.encompass_id)
@@ -81,6 +80,18 @@ def run_full(
 
     for r in src_rows:
         if not r.encompass_id:
+            continue
+        if r.status.strip().upper() == "INACTIVE":
+            actions.append(
+                Action(
+                    at=now_utc_iso(),
+                    kind="skip",
+                    address_id=None,
+                    encompass_id=r.encompass_id,
+                    reason="inactive_status",
+                )
+            )
+            dry_rows.append({"encompass_id": r.encompass_id, "name": r.name, "action": "skip"})
             continue
         desired = to_address_payload(
             r, tags_index, radius_m=radius_m, managed_tag_name=MANAGED_BY_TAG
@@ -105,7 +116,8 @@ def run_full(
                     by_eid[r.encompass_id] = existing
 
         if existing:
-            # Merge: ensure scope markers (tag + external ids) are included in desired diff computation
+            # Merge: ensure scope markers (tag + external ids) are included in
+            # desired diff computation
             # Build patch
             diff = diff_address(existing, desired)
             # If fingerprint unchanged and no missing scope markers, skip

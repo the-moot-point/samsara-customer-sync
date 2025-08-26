@@ -78,6 +78,7 @@ sync-e2s daily   --encompass-delta data/encompass_delta.csv   --warehouses data/
 ### Safety rails
 
 - Only touch addresses with `externalIds.encompass_id` or tag `ManagedBy:EncompassSync`.
+- Customers with `Account Status` `INACTIVE` are ignored unless explicitly deleted.
 - Two-step delete: tag `CandidateDelete`; hard-delete only with `--confirm-delete` **and**
   after retention window.
 - Never touch entries in `warehouses.csv` (denylist of Samsara IDs/names).
