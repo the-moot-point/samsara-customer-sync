@@ -1,3 +1,6 @@
+import pytest
+
+
 def test_diff_address_returns_only_changes():
     from encompass_to_samsara.transform import diff_address
 
@@ -55,3 +58,58 @@ def test_diff_address_returns_only_changes():
 
     patch = diff_address(existing, desired)
     assert patch == expected
+
+
+def test_diff_address_preserves_polygon_geofence():
+    from encompass_to_samsara.transform import diff_address
+
+    existing = {
+        "name": "Old Name",
+        "formattedAddress": "123 Main St",
+        "geofence": {"polygon": {"type": "Polygon", "coordinates": []}},
+    }
+    desired = {
+        "name": "New Name",
+        "formattedAddress": "123 Main St",
+        "geofence": {
+            "radiusMeters": 75,
+            "center": {"latitude": 11.0, "longitude": 21.0},
+        },
+    }
+    patch = diff_address(existing, desired)
+    assert patch == {"name": "New Name"}
+
+
+@pytest.mark.parametrize(
+    "tag_data, desired_tags",
+    [
+        ({"tags": [{"id": "99", "name": "Updated Geofence"}]}, {"tagIds": ["99"]}),
+        (
+            {"tagIds": ["99"], "tagNames": {"99": "Updated Geofence"}},
+            {"tagIds": ["99"]},
+        ),
+    ],
+)
+def test_diff_address_skips_geofence_with_updated_tag(tag_data, desired_tags):
+    from encompass_to_samsara.transform import diff_address
+
+    existing = {
+        "name": "Old Name",
+        "formattedAddress": "123 Main St",
+        "geofence": {
+            "radiusMeters": 50,
+            "center": {"latitude": 10.0, "longitude": 20.0},
+        },
+        **tag_data,
+    }
+    desired = {
+        "name": "New Name",
+        "formattedAddress": "123 Main St",
+        "geofence": {
+            "radiusMeters": 75,
+            "center": {"latitude": 11.0, "longitude": 21.0},
+        },
+        **desired_tags,
+    }
+    patch = diff_address(existing, desired)
+    assert patch == {"name": "New Name"}
