@@ -110,6 +110,7 @@ def to_address_payload(
     # Compose formatted address
     formatted_addr = row.address or ""
     fp = compute_fingerprint(row.name, row.status, formatted_addr)
+    radius_m = int(radius_m)
 
     tag_ids: list[str] = []
     # scope tag

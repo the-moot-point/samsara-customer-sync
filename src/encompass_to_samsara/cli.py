@@ -36,6 +36,7 @@ def cli() -> None:
     "--radius-m",
     default=lambda: int(os.getenv("E2S_DEFAULT_RADIUS_METERS", "50")),
     show_default=True,
+    type=int,
 )
 @click.option("--retention-days", default=30, show_default=True)
 @click.option("--confirm-delete", is_flag=True, help="Allow hard deletes after retention window.")
@@ -70,6 +71,7 @@ def full_cmd(
     "--radius-m",
     default=lambda: int(os.getenv("E2S_DEFAULT_RADIUS_METERS", "50")),
     show_default=True,
+    type=int,
 )
 @click.option("--retention-days", default=30, show_default=True)
 @click.option("--confirm-delete", is_flag=True, help="Allow hard deletes after retention window.")
