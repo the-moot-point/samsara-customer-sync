@@ -3,10 +3,9 @@ from __future__ import annotations
 import csv
 import hashlib
 import logging
-import os
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any
 
 LOG = logging.getLogger(__name__)
 
@@ -30,8 +29,8 @@ class SourceRow:
     encompass_id: str
     name: str
     status: str
-    lat: Optional[float]
-    lon: Optional[float]
+    lat: float | None
+    lon: float | None
     address: str
     location: str
     company: str
@@ -49,7 +48,7 @@ def normalize(s: str | None) -> str:
 def canonical_address(addr: str | None) -> str:
     return normalize(addr)
 
-def safe_float(x: str | None) -> Optional[float]:
+def safe_float(x: str | None) -> float | None:
     if x is None or x == "":
         return None
     try:
@@ -58,7 +57,7 @@ def safe_float(x: str | None) -> Optional[float]:
         return None
 
 def read_encompass_csv(path: str) -> list[SourceRow]:
-    with open(path, "r", encoding="utf-8-sig") as f:
+    with open(path, encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
         cols = [c.strip() for c in reader.fieldnames or []]
         for req in REQUIRED_COLUMNS:
@@ -82,7 +81,7 @@ def read_encompass_csv(path: str) -> list[SourceRow]:
             )
         return out
 
-def validate_lat_lon(lat: Optional[float], lon: Optional[float]) -> bool:
+def validate_lat_lon(lat: float | None, lon: float | None) -> bool:
     if lat is None or lon is None:
         return False
     if not (-90 <= lat <= 90 and -180 <= lon <= 180):
@@ -90,7 +89,7 @@ def validate_lat_lon(lat: Optional[float], lon: Optional[float]) -> bool:
     return True
 
 def compute_fingerprint(name: str, status: str, formatted_addr: str) -> str:
-    payload = f"{normalize(name)}|{normalize(status)}|{normalize(formatted_addr)}".encode("utf-8")
+    payload = f"{normalize(name)}|{normalize(status)}|{normalize(formatted_addr)}".encode()
     return hashlib.sha256(payload).hexdigest()
 
 def to_address_payload(
@@ -141,6 +140,50 @@ def to_address_payload(
         payload["tagIds"] = tag_ids
     return payload
 
+
+def _extract_tag_names(addr: dict) -> set[str]:
+    """Return set of tag names from an address payload."""
+    names: set[str] = set()
+    tags_field = addr.get("tags") or []
+    if isinstance(tags_field, list):
+        for t in tags_field:
+            if isinstance(t, dict):
+                n = t.get("name") or t.get("tagName")
+                if n:
+                    names.add(str(n))
+            elif isinstance(t, str):
+                names.add(t)
+    tag_ids = addr.get("tagIds") or []
+    id_to_name: dict[str, str] = {}
+    for t in tags_field:
+        if isinstance(t, dict):
+            tid = t.get("id") or t.get("tagId")
+            n = t.get("name")
+            if tid and n:
+                id_to_name[str(tid)] = str(n)
+    for mapping_key in ["tagNames", "tagIdToName"]:
+        m = addr.get(mapping_key)
+        if isinstance(m, dict):
+            for k, v in m.items():
+                id_to_name[str(k)] = str(v)
+    for tid in tag_ids:
+        if isinstance(tid, dict):
+            n = tid.get("name")
+            if n:
+                names.add(str(n))
+            t_id = tid.get("id") or tid.get("tagId")
+            if t_id and (t_id_str := str(t_id)) in id_to_name:
+                names.add(id_to_name[t_id_str])
+        else:
+            tid_str = str(tid)
+            if tid_str in id_to_name:
+                names.add(id_to_name[tid_str])
+    return names
+
+
+def _has_updated_geofence_tag(addr: dict) -> bool:
+    return any(normalize(n) == "updated geofence" for n in _extract_tag_names(addr))
+
 def diff_address(existing: dict, desired: dict) -> dict:
     """
     Compute a minimal patch diff (shallow) between existing and desired address payload.
@@ -156,22 +199,30 @@ def diff_address(existing: dict, desired: dict) -> dict:
     # geofence (compare center lat/lon and radius)
     e_geo = existing.get("geofence") or {}
     d_geo = desired.get("geofence") or {}
-    if bool(d_geo) != bool(e_geo):
-        patch["geofence"] = d_geo or None
-    else:
-        e_center = (e_geo.get("center") or {})
-        d_center = (d_geo.get("center") or {})
-        if (
-            (e_geo.get("radiusMeters") != d_geo.get("radiusMeters"))
-            or (e_center.get("latitude") != d_center.get("latitude"))
-            or (e_center.get("longitude") != d_center.get("longitude"))
-        ):
+    skip_geofence = "polygon" in e_geo or _has_updated_geofence_tag(existing)
+    if not skip_geofence:
+        if bool(d_geo) != bool(e_geo):
             patch["geofence"] = d_geo or None
+        else:
+            e_center = (e_geo.get("center") or {})
+            d_center = (d_geo.get("center") or {})
+            if (
+                (e_geo.get("radiusMeters") != d_geo.get("radiusMeters"))
+                or (e_center.get("latitude") != d_center.get("latitude"))
+                or (e_center.get("longitude") != d_center.get("longitude"))
+            ):
+                patch["geofence"] = d_geo or None
     # externalIds merge (add/replace keys we own, keep others intact on server)
     e_ext = existing.get("externalIds") or {}
     d_ext = desired.get("externalIds") or {}
     ext_patch = {}
-    for k in ["encompass_id", "ENCOMPASS_STATUS", "ENCOMPASS_MANAGED", "ENCOMPASS_FINGERPRINT", "ENCOMPASS_TYPE"]:
+    for k in [
+        "encompass_id",
+        "ENCOMPASS_STATUS",
+        "ENCOMPASS_MANAGED",
+        "ENCOMPASS_FINGERPRINT",
+        "ENCOMPASS_TYPE",
+    ]:
         if k in d_ext and e_ext.get(k) != d_ext.get(k):
             ext_patch[k] = d_ext.get(k)
     if ext_patch:
