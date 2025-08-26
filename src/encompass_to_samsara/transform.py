@@ -92,6 +92,15 @@ def compute_fingerprint(name: str, status: str, formatted_addr: str) -> str:
     payload = f"{normalize(name)}|{normalize(status)}|{normalize(formatted_addr)}".encode()
     return hashlib.sha256(payload).hexdigest()
 
+
+def clean_external_ids(ext: dict[str, Any]) -> dict[str, Any]:
+    """Return a copy of ``ext`` with a single canonical Encompass ID key."""
+    out = ext.copy()
+    eid = out.pop("EncompassId", None) or out.pop("ENCOMPASS_ID", None)
+    if eid and "encompass_id" not in out:
+        out["encompass_id"] = eid
+    return out
+
 def to_address_payload(
     row: SourceRow,
     tag_name_to_id: dict[str, str],
@@ -213,8 +222,9 @@ def diff_address(existing: dict, desired: dict) -> dict:
             ):
                 patch["geofence"] = d_geo or None
     # externalIds merge (add/replace keys we own, keep others intact on server)
-    e_ext = existing.get("externalIds") or {}
-    d_ext = desired.get("externalIds") or {}
+    e_ext_raw = existing.get("externalIds") or {}
+    e_ext = clean_external_ids(e_ext_raw)
+    d_ext = clean_external_ids(desired.get("externalIds") or {})
     ext_patch = {}
     for k in [
         "encompass_id",
@@ -225,7 +235,7 @@ def diff_address(existing: dict, desired: dict) -> dict:
     ]:
         if k in d_ext and e_ext.get(k) != d_ext.get(k):
             ext_patch[k] = d_ext.get(k)
-    if ext_patch:
+    if ext_patch or e_ext != e_ext_raw:
         ext_merged = e_ext.copy()
         ext_merged.update(ext_patch)
         patch["externalIds"] = ext_merged

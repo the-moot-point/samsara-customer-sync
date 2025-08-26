@@ -13,7 +13,7 @@ def test_diff_address_returns_only_changes():
         },
         "tagIds": ["1", "2"],
         "externalIds": {
-            "encompass_id": "abc",
+            "EncompassId": "abc",
             "ENCOMPASS_STATUS": "Active",
             "ENCOMPASS_MANAGED": "1",
             "ENCOMPASS_FINGERPRINT": "fp1",
@@ -35,6 +35,7 @@ def test_diff_address_returns_only_changes():
             "ENCOMPASS_MANAGED": "1",
             "ENCOMPASS_FINGERPRINT": "fp2",
             "ENCOMPASS_TYPE": "Retail",
+            "OTHER": "keep",
         },
     }
 
