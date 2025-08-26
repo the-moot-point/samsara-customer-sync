@@ -113,11 +113,12 @@ class SamsaraClient:
     def list_addresses(self, limit: int = 200) -> List[Dict[str, Any]]:
         """Iterate through all addresses (handling pagination if present)."""
         out: List[Dict[str, Any]] = []
-        page_token = None
+        page_token: Optional[str] = None
+        token_param = "pageToken"
         while True:
             params = {"limit": limit}
             if page_token:
-                params["pageToken"] = page_token
+                params[token_param] = page_token
             r = self.request("GET", "/addresses", params=params)
             r.raise_for_status()
             data = r.json()
@@ -128,7 +129,14 @@ class SamsaraClient:
             if not isinstance(items, list):
                 items = []
             out.extend(items)
-            page_token = data.get("nextPageToken") or data.get("pagination", {}).get("nextPageToken")
+
+            pagination = data.get("pagination") or {}
+            if pagination.get("hasNextPage"):
+                page_token = pagination.get("endCursor")
+                token_param = "after"
+            else:
+                page_token = data.get("nextPageToken") or pagination.get("nextPageToken")
+                token_param = "pageToken"
             if not page_token:
                 break
         return out
