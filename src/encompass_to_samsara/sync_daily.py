@@ -1,15 +1,19 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List
 
-from .samsara_client import SamsaraClient
-from .tags import MANAGED_BY_TAG, CANDIDATE_DELETE_TAG, build_tag_index, resolve_tag_id
-from .transform import read_encompass_csv, to_address_payload, diff_address, compute_fingerprint
 from .matcher import index_addresses_by_external_id
-from .safety import load_warehouses, is_warehouse, now_utc_iso, eligible_for_hard_delete, is_managed
+from .reporting import Action, ensure_out_dir, summarize, write_csv, write_jsonl
+from .safety import eligible_for_hard_delete, is_managed, is_warehouse, load_warehouses, now_utc_iso
+from .samsara_client import SamsaraClient
 from .state import load_state, save_state
-from .reporting import Action, ensure_out_dir, write_jsonl, write_csv, summarize
+from .tags import CANDIDATE_DELETE_TAG, MANAGED_BY_TAG, build_tag_index, resolve_tag_id
+from .transform import (
+    clean_external_ids,
+    diff_address,
+    read_encompass_csv,
+    to_address_payload,
+)
 
 LOG = logging.getLogger(__name__)
 
@@ -65,7 +69,7 @@ def run_daily(
                             client.patch_address(aid, patch)
                         actions.append(Action(at=now_utc_iso(), kind="quarantine", address_id=aid, encompass_id=r.encompass_id, reason="delta_delete_candidate", payload=patch))
                 else:
-                    ext = existing.get("externalIds") or {}
+                    ext = clean_external_ids(existing.get("externalIds") or {})
                     if ext.get("ENCOMPASS_DELETE_CANDIDATE") != "1":
                         patch = {"externalIds": ext | {"ENCOMPASS_DELETE_CANDIDATE": "1"}}
                         if apply:

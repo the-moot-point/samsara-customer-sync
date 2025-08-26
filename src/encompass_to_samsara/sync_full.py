@@ -10,6 +10,7 @@ from .samsara_client import SamsaraClient
 from .state import load_state, save_state
 from .tags import CANDIDATE_DELETE_TAG, MANAGED_BY_TAG, build_tag_index, resolve_tag_id
 from .transform import (
+    clean_external_ids,
     diff_address,
     read_encompass_csv,
     to_address_payload,
@@ -130,7 +131,7 @@ def run_full(
                 needs_scope = True
             if needs_scope and "externalIds" not in diff:
                 # inject ext and tags
-                diff["externalIds"] = (existing.get("externalIds") or {}).copy()
+                diff["externalIds"] = clean_external_ids(existing.get("externalIds") or {})
                 diff["externalIds"]["ENCOMPASS_MANAGED"] = "1"
                 diff["externalIds"]["encompass_id"] = r.encompass_id
             if needs_scope:
@@ -247,7 +248,7 @@ def run_full(
                 )
         else:
             # fallback to externalIds marker
-            ext2 = addr.get("externalIds") or {}
+            ext2 = clean_external_ids(addr.get("externalIds") or {})
             if ext2.get("ENCOMPASS_DELETE_CANDIDATE") != "1":
                 patch = {"externalIds": ext2 | {"ENCOMPASS_DELETE_CANDIDATE": "1"}}
                 if apply:
