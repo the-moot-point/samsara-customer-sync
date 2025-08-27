@@ -67,7 +67,7 @@ sync-e2s daily   --encompass-delta data/encompass_delta.csv   --warehouses data/
 - `Customer ID` → `externalIds.encompass_id` (required)
 - `Customer Name` → `name`
 - `Report Company Address` → `formattedAddress` (composed if needed)
-- `Latitude`,`Longitude` → geofence center (default radius 50 m; configurable)
+- `Latitude`,`Longitude` → geofence circle (default radius 50 m; configurable)
 - `Account Status` → `externalIds.ENCOMPASS_STATUS`
 - `Location` → **Tag** (resolved via List Tags)
 - `Company` → **Tag** (resolved via List Tags)

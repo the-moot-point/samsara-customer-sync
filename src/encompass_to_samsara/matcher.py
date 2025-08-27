@@ -72,9 +72,13 @@ def probable_match(
         within: list[tuple[dict, float]] = []
         for a in candidates:
             g = a.get("geofence") or {}
-            c = g.get("center") or {}
-            lat = c.get("latitude")
-            lon = c.get("longitude")
+            circle = g.get("circle") or {}
+            lat = circle.get("latitude")
+            lon = circle.get("longitude")
+            if lat is None or lon is None:
+                center = g.get("center") or {}
+                lat = center.get("latitude")
+                lon = center.get("longitude")
             if lat is None or lon is None:
                 continue
             d = haversine_m(float(row_lat), float(row_lon), float(lat), float(lon))
