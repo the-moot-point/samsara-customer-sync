@@ -59,6 +59,7 @@ sync-e2s daily   --encompass-delta data/encompass_delta.csv   --warehouses data/
 
 1. **Full Encompass CSV** with columns:
    `Customer ID, Customer Name, Account Status, Latitude, Longitude, Report Address, Location, Company, Customer Type`
+   - `Report Address` values should exclude company names
 2. **Daily delta CSV** (same columns, optional `Action` = `upsert|delete`)
 3. **`warehouses.csv`** (or `.yaml`) list of Samsara IDs/names never to modify/delete.
 
@@ -66,7 +67,7 @@ sync-e2s daily   --encompass-delta data/encompass_delta.csv   --warehouses data/
 
 - `Customer ID` → `externalIds.encompass_id` (required)
 - `Customer Name` → `name`
-- `Report Address` → `formattedAddress` (composed if needed)
+- `Report Address` (no company name) → `formattedAddress` (composed if needed)
 - `Latitude`,`Longitude` → geofence circle (default radius 50 m; configurable)
 - `Account Status` → `externalIds.ENCOMPASS_STATUS`
 - `Location` → **Tag** (resolved via List Tags)
