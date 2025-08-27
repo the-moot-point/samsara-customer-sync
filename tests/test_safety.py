@@ -1,11 +1,12 @@
+from datetime import UTC, datetime, timedelta
+
 import pytest
-from datetime import datetime, timedelta, timezone
 
 from encompass_to_samsara.safety import (
-    load_warehouses,
-    is_warehouse,
-    is_managed,
     eligible_for_hard_delete,
+    is_managed,
+    is_warehouse,
+    load_warehouses,
 )
 
 
@@ -76,7 +77,7 @@ def test_is_managed(address_samples):
 
 
 def test_eligible_for_hard_delete():
-    now = datetime.utcnow().replace(tzinfo=timezone.utc)
+    now = datetime.utcnow().replace(tzinfo=UTC)
     old_ts = (now - timedelta(days=31)).isoformat()
     recent_ts = (now - timedelta(days=1)).isoformat()
     state = {

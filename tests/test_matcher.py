@@ -1,8 +1,9 @@
 from encompass_to_samsara.matcher import (
+    haversine_m,
     index_addresses_by_external_id,
     probable_match,
-    haversine_m,
 )
+
 
 def test_haversine_reasonable():
     d = haversine_m(30.2672, -97.7431, 30.2672, -97.7431)

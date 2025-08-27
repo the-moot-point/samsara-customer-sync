@@ -1,4 +1,12 @@
-from encompass_to_samsara.transform import compute_fingerprint, normalize, to_address_payload, SourceRow, validate_lat_lon, diff_address
+from encompass_to_samsara.transform import (
+    SourceRow,
+    compute_fingerprint,
+    diff_address,
+    normalize,
+    to_address_payload,
+    validate_lat_lon,
+)
+
 
 def test_normalize_and_fingerprint_stability():
     n1 = normalize("  Acme  Corp, Inc. ")

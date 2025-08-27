@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-from typing import Any, Dict
 
 LOG = logging.getLogger(__name__)
 
@@ -12,7 +11,7 @@ DEFAULT_STATE = {"fingerprints": {}, "candidate_deletes": {}}
 def load_state(path: str) -> dict:
     if not os.path.exists(path):
         return DEFAULT_STATE.copy()
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         try:
             data = json.load(f)
         except json.JSONDecodeError:

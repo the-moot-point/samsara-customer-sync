@@ -35,7 +35,7 @@ def test_actions_jsonl_geofence_always_circle(tmp_path, token_env, base_response
         "Account Status": "Active",
         "Latitude": "30.1",
         "Longitude": "-97.7",
-        "Report Company Address": "123 A St",
+        "Report Address": "123 A St",
         "Location": "Austin",
         "Company": "JECO",
         "Customer Type": "Retail",
