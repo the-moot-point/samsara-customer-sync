@@ -7,6 +7,8 @@ import os
 from dataclasses import dataclass, asdict
 from typing import Any, Dict, List
 
+from .transform import normalize_geofence
+
 LOG = logging.getLogger(__name__)
 
 @dataclass
@@ -28,8 +30,9 @@ def write_jsonl(path: str, actions: list[Action]) -> None:
             data = asdict(a)
             payload = data.get("payload")
             if isinstance(payload, dict):
-                geo = payload.get("geofence")
-                if isinstance(geo, dict):
+                geo = normalize_geofence(payload.get("geofence"))
+                if geo:
+                    payload["geofence"] = geo
                     circle = geo.get("circle")
                     if isinstance(circle, dict) and "radiusMeters" in circle:
                         try:
