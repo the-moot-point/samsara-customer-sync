@@ -8,8 +8,10 @@ def test_diff_address_returns_only_changes():
         "name": "Old Name",
         "formattedAddress": "123 Main St",
         "geofence": {
-            "radiusMeters": 50,
-            "center": {"latitude": 10.0, "longitude": 20.0},
+            "circle": {
+                "radiusMeters": 50,
+                "center": {"latitude": 10.0, "longitude": 20.0},
+            }
         },
         "tagIds": ["1", "2"],
         "externalIds": {
@@ -25,8 +27,10 @@ def test_diff_address_returns_only_changes():
         "name": "New Name",
         "formattedAddress": "456 Elm St",
         "geofence": {
-            "radiusMeters": 75,
-            "center": {"latitude": 11.0, "longitude": 21.0},
+            "circle": {
+                "radiusMeters": 75,
+                "center": {"latitude": 11.0, "longitude": 21.0},
+            }
         },
         "tagIds": ["1", "3"],
         "externalIds": {
@@ -43,8 +47,10 @@ def test_diff_address_returns_only_changes():
         "name": "New Name",
         "formattedAddress": "456 Elm St",
         "geofence": {
-            "radiusMeters": 75,
-            "center": {"latitude": 11.0, "longitude": 21.0},
+            "circle": {
+                "radiusMeters": 75,
+                "center": {"latitude": 11.0, "longitude": 21.0},
+            }
         },
         "tagIds": ["1", "3"],
         "externalIds": {
@@ -73,12 +79,41 @@ def test_diff_address_preserves_polygon_geofence():
         "name": "New Name",
         "formattedAddress": "123 Main St",
         "geofence": {
-            "radiusMeters": 75,
-            "center": {"latitude": 11.0, "longitude": 21.0},
+            "circle": {
+                "radiusMeters": 75,
+                "center": {"latitude": 11.0, "longitude": 21.0},
+            }
         },
     }
     patch = diff_address(existing, desired)
     assert patch == {"name": "New Name"}
+
+
+def test_diff_address_handles_missing_circle_geofence():
+    from encompass_to_samsara.transform import diff_address
+
+    existing = {
+        "name": "Same Name",
+        "formattedAddress": "123 Main St",
+        # malformed legacy geofence lacking "circle"
+        "geofence": {
+            "radiusMeters": 50,
+            "center": {"latitude": 10.0, "longitude": 20.0},
+        },
+    }
+    desired = {
+        "name": "Same Name",
+        "formattedAddress": "123 Main St",
+        "geofence": {
+            "circle": {
+                "radiusMeters": 60,
+                "center": {"latitude": 11.0, "longitude": 21.0},
+            }
+        },
+    }
+
+    patch = diff_address(existing, desired)
+    assert patch == {"geofence": desired["geofence"]}
 
 
 @pytest.mark.parametrize(
@@ -98,8 +133,10 @@ def test_diff_address_skips_geofence_with_updated_tag(tag_data, desired_tags):
         "name": "Old Name",
         "formattedAddress": "123 Main St",
         "geofence": {
-            "radiusMeters": 50,
-            "center": {"latitude": 10.0, "longitude": 20.0},
+            "circle": {
+                "radiusMeters": 50,
+                "center": {"latitude": 10.0, "longitude": 20.0},
+            }
         },
         **tag_data,
     }
@@ -107,8 +144,10 @@ def test_diff_address_skips_geofence_with_updated_tag(tag_data, desired_tags):
         "name": "New Name",
         "formattedAddress": "123 Main St",
         "geofence": {
-            "radiusMeters": 75,
-            "center": {"latitude": 11.0, "longitude": 21.0},
+            "circle": {
+                "radiusMeters": 75,
+                "center": {"latitude": 11.0, "longitude": 21.0},
+            }
         },
         **desired_tags,
     }

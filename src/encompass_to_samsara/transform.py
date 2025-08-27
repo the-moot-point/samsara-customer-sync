@@ -127,8 +127,10 @@ def to_address_payload(
     geofence = None
     if validate_lat_lon(row.lat, row.lon):
         geofence = {
-            "radiusMeters": radius_m,
-            "center": {"latitude": row.lat, "longitude": row.lon},
+            "circle": {
+                "radiusMeters": radius_m,
+                "center": {"latitude": row.lat, "longitude": row.lon},
+            }
         }
 
     payload: dict[str, Any] = {
@@ -206,18 +208,20 @@ def diff_address(existing: dict, desired: dict) -> dict:
     # formatted address
     if (existing.get("formattedAddress") or "") != (desired.get("formattedAddress") or ""):
         patch["formattedAddress"] = desired.get("formattedAddress")
-    # geofence (compare center lat/lon and radius)
+    # geofence (compare circle center lat/lon and radius)
     e_geo = existing.get("geofence") or {}
     d_geo = desired.get("geofence") or {}
     skip_geofence = "polygon" in e_geo or _has_updated_geofence_tag(existing)
     if not skip_geofence:
-        if bool(d_geo) != bool(e_geo):
+        e_circle = e_geo.get("circle") or {}
+        d_circle = d_geo.get("circle") or {}
+        if bool(d_circle) != bool(e_circle):
             patch["geofence"] = d_geo or None
         else:
-            e_center = (e_geo.get("center") or {})
-            d_center = (d_geo.get("center") or {})
+            e_center = (e_circle.get("center") or {})
+            d_center = (d_circle.get("center") or {})
             if (
-                (e_geo.get("radiusMeters") != d_geo.get("radiusMeters"))
+                (e_circle.get("radiusMeters") != d_circle.get("radiusMeters"))
                 or (e_center.get("latitude") != d_center.get("latitude"))
                 or (e_center.get("longitude") != d_center.get("longitude"))
             ):

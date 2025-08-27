@@ -24,7 +24,7 @@ def test_payload_includes_scope_and_tags():
     assert payload["externalIds"]["encompass_id"] == "C123"
     assert payload["externalIds"]["ENCOMPASS_MANAGED"] == "1"
     assert "ENCOMPASS_FINGERPRINT" in payload["externalIds"]
-    assert payload["geofence"]["radiusMeters"] == 75
+    assert payload["geofence"]["circle"]["radiusMeters"] == 75
     assert set(payload["tagIds"]) >= {"1","10","20"}
 
 def test_validate_lat_lon():
