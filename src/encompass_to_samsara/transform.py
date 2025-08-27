@@ -11,7 +11,6 @@ LOG = logging.getLogger(__name__)
 
 RE_SPACES = re.compile(r"\s+")
 RE_PUNCT = re.compile(r"[^\w\s]")
-RE_EXTID_SANITIZE = re.compile(r"[^A-Za-z0-9@._%+\-]")
 
 REQUIRED_COLUMNS = [
     "Customer ID",
@@ -138,18 +137,13 @@ def normalize_geofence(geo: dict | None) -> dict | None:
     return geo
 
 
-def sanitize_external_id_values(ext: dict[str, Any]) -> dict[str, Any]:
-    """Return copy of ``ext`` with values stripped to allowed characters."""
-    return {k: RE_EXTID_SANITIZE.sub("", str(v)) for k, v in ext.items()}
-
-
 def clean_external_ids(ext: dict[str, Any]) -> dict[str, Any]:
     """Return a copy of ``ext`` with a single canonical Encompass ID key."""
     out = ext.copy()
     eid = out.pop("EncompassId", None) or out.pop("ENCOMPASS_ID", None)
     if eid and "encompass_id" not in out:
         out["encompass_id"] = eid
-    return sanitize_external_id_values(out)
+    return out
 
 def to_address_payload(
     row: SourceRow,
@@ -186,19 +180,18 @@ def to_address_payload(
             }
         )
 
-    external_ids = {
-        "encompass_id": row.encompass_id,
-        "ENCOMPASS_STATUS": row.status,
-        "ENCOMPASS_MANAGED": "1",
-        "ENCOMPASS_FINGERPRINT": fp,
-    }
-    if row.ctype:
-        external_ids["ENCOMPASS_TYPE"] = row.ctype
     payload: dict[str, Any] = {
         "name": row.name,
         "formattedAddress": formatted_addr,
-        "externalIds": sanitize_external_id_values(external_ids),
+        "externalIds": {
+            "encompass_id": row.encompass_id,
+            "ENCOMPASS_STATUS": row.status,
+            "ENCOMPASS_MANAGED": "1",
+            "ENCOMPASS_FINGERPRINT": fp,
+        },
     }
+    if row.ctype:
+        payload["externalIds"]["ENCOMPASS_TYPE"] = row.ctype
 
     if geofence:
         payload["geofence"] = geofence
