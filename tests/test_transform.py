@@ -24,6 +24,7 @@ def test_payload_includes_scope_and_tags():
     assert payload["externalIds"]["encompass_id"] == "C123"
     assert payload["externalIds"]["ENCOMPASS_MANAGED"] == "1"
     assert "ENCOMPASS_FINGERPRINT" in payload["externalIds"]
+    assert set(payload["geofence"].keys()) == {"circle"}
     assert payload["geofence"]["circle"]["radiusMeters"] == 75
     assert payload["geofence"]["circle"]["latitude"] == 30.1
     assert payload["geofence"]["circle"]["longitude"] == -97.7

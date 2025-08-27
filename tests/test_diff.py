@@ -8,8 +8,11 @@ def test_diff_address_returns_only_changes():
         "name": "Old Name",
         "formattedAddress": "123 Main St",
         "geofence": {
-            "radiusMeters": 50,
-            "center": {"latitude": 10.0, "longitude": 20.0},
+            "circle": {
+                "radiusMeters": 50,
+                "latitude": 10.0,
+                "longitude": 20.0,
+            }
         },
         "tagIds": ["1", "2"],
         "externalIds": {
@@ -25,8 +28,11 @@ def test_diff_address_returns_only_changes():
         "name": "New Name",
         "formattedAddress": "456 Elm St",
         "geofence": {
-            "radiusMeters": 75,
-            "center": {"latitude": 11.0, "longitude": 21.0},
+            "circle": {
+                "radiusMeters": 75,
+                "latitude": 11.0,
+                "longitude": 21.0,
+            }
         },
         "tagIds": ["1", "3"],
         "externalIds": {
@@ -43,8 +49,11 @@ def test_diff_address_returns_only_changes():
         "name": "New Name",
         "formattedAddress": "456 Elm St",
         "geofence": {
-            "radiusMeters": 75,
-            "center": {"latitude": 11.0, "longitude": 21.0},
+            "circle": {
+                "radiusMeters": 75,
+                "latitude": 11.0,
+                "longitude": 21.0,
+            }
         },
         "tagIds": ["1", "3"],
         "externalIds": {
@@ -73,8 +82,11 @@ def test_diff_address_preserves_polygon_geofence():
         "name": "New Name",
         "formattedAddress": "123 Main St",
         "geofence": {
-            "radiusMeters": 75,
-            "center": {"latitude": 11.0, "longitude": 21.0},
+            "circle": {
+                "radiusMeters": 75,
+                "latitude": 11.0,
+                "longitude": 21.0,
+            }
         },
     }
     patch = diff_address(existing, desired)
@@ -98,8 +110,11 @@ def test_diff_address_skips_geofence_with_updated_tag(tag_data, desired_tags):
         "name": "Old Name",
         "formattedAddress": "123 Main St",
         "geofence": {
-            "radiusMeters": 50,
-            "center": {"latitude": 10.0, "longitude": 20.0},
+            "circle": {
+                "radiusMeters": 50,
+                "latitude": 10.0,
+                "longitude": 20.0,
+            }
         },
         **tag_data,
     }
@@ -107,8 +122,11 @@ def test_diff_address_skips_geofence_with_updated_tag(tag_data, desired_tags):
         "name": "New Name",
         "formattedAddress": "123 Main St",
         "geofence": {
-            "radiusMeters": 75,
-            "center": {"latitude": 11.0, "longitude": 21.0},
+            "circle": {
+                "radiusMeters": 75,
+                "latitude": 11.0,
+                "longitude": 21.0,
+            }
         },
         **desired_tags,
     }

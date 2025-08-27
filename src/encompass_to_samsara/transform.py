@@ -209,20 +209,20 @@ def diff_address(existing: dict, desired: dict) -> dict:
     # formatted address
     if (existing.get("formattedAddress") or "") != (desired.get("formattedAddress") or ""):
         patch["formattedAddress"] = desired.get("formattedAddress")
-    # geofence (compare center lat/lon and radius)
+    # geofence (compare circle lat/lon and radius)
     e_geo = existing.get("geofence") or {}
     d_geo = desired.get("geofence") or {}
-    skip_geofence = "polygon" in e_geo or _has_updated_geofence_tag(existing)
+    skip_geofence = bool(e_geo.get("polygon")) or _has_updated_geofence_tag(existing)
     if not skip_geofence:
         if bool(d_geo) != bool(e_geo):
             patch["geofence"] = d_geo or None
         else:
-            e_center = (e_geo.get("center") or {})
-            d_center = (d_geo.get("center") or {})
+            e_circle = e_geo.get("circle") or {}
+            d_circle = d_geo.get("circle") or {}
             if (
-                (e_geo.get("radiusMeters") != d_geo.get("radiusMeters"))
-                or (e_center.get("latitude") != d_center.get("latitude"))
-                or (e_center.get("longitude") != d_center.get("longitude"))
+                e_circle.get("radiusMeters") != d_circle.get("radiusMeters")
+                or e_circle.get("latitude") != d_circle.get("latitude")
+                or e_circle.get("longitude") != d_circle.get("longitude")
             ):
                 patch["geofence"] = d_geo or None
     # externalIds merge (add/replace keys we own, keep others intact on server)
