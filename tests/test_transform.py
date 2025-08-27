@@ -24,8 +24,26 @@ def test_payload_includes_scope_and_tags():
     assert payload["externalIds"]["encompass_id"] == "C123"
     assert payload["externalIds"]["ENCOMPASS_MANAGED"] == "1"
     assert "ENCOMPASS_FINGERPRINT" in payload["externalIds"]
-    assert payload["geofence"]["radiusMeters"] == 75
-    assert set(payload["tagIds"]) >= {"1","10","20"}
+    assert payload["geofence"]["circle"]["radiusMeters"] == 75
+    assert payload["geofence"]["circle"]["latitude"] == 30.1
+    assert payload["geofence"]["circle"]["longitude"] == -97.7
+    assert set(payload.get("tagIds", [])) >= {"1","10","20"}
+
+
+def test_invalid_coordinates_skip_geofence():
+    row = SourceRow(
+        encompass_id="C999",
+        name="Invalid",
+        status="Active",
+        lat=None,
+        lon=None,
+        address="",
+        location="",
+        company="",
+        ctype="Retail",
+    )
+    payload = to_address_payload(row, {})
+    assert "geofence" not in payload
 
 def test_validate_lat_lon():
     assert validate_lat_lon(0,0)
