@@ -40,6 +40,27 @@ def test_payload_includes_scope_and_tags():
     assert set(payload.get("tagIds", [])) >= {"1","10","20"}
 
 
+def test_ctype_sanitized():
+    row = SourceRow(
+        encompass_id="C100",
+        name="Foo Store",
+        status="Active",
+        lat=None,
+        lon=None,
+        address="",
+        location="",
+        company="",
+        ctype="Convenience*",
+    )
+    payload = to_address_payload(row, {})
+    ext = payload["externalIds"]
+    assert ext["ENCOMPASS_TYPE"] == "Convenience"
+    assert ext["encompass_id"] == "C100"
+    assert ext["ENCOMPASS_STATUS"] == "Active"
+    assert ext["ENCOMPASS_MANAGED"] == "1"
+    assert "ENCOMPASS_FINGERPRINT" in ext
+
+
 def test_invalid_coordinates_skip_geofence():
     row = SourceRow(
         encompass_id="C999",
