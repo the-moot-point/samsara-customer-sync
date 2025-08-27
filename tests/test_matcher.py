@@ -22,8 +22,30 @@ def test_probable_match_by_distance():
     row_name = "X"
     row_addr = "Y"
     cand = [
-        {"id":"10","name":"A","formattedAddress":"Z","geofence":{"center":{"latitude":30.0,"longitude":-97.0}}},
-        {"id":"11","name":"B","formattedAddress":"Q","geofence":{"center":{"latitude":30.0001,"longitude":-97.0001}}},
+        {
+            "id": "10",
+            "name": "A",
+            "formattedAddress": "Z",
+            "geofence": {
+                "circle": {
+                    "latitude": 30.0,
+                    "longitude": -97.0,
+                    "radiusMeters": 10,
+                }
+            },
+        },
+        {
+            "id": "11",
+            "name": "B",
+            "formattedAddress": "Q",
+            "geofence": {
+                "circle": {
+                    "latitude": 30.0001,
+                    "longitude": -97.0001,
+                    "radiusMeters": 10,
+                }
+            },
+        },
     ]
     m = probable_match(row_name, row_addr, 30.00009, -97.00009, cand, distance_threshold_m=25.0)
     assert m and m["id"] in ("10","11")
@@ -38,13 +60,25 @@ def test_probable_match_tie_break_by_address():
             "id": "1",
             "name": "Other",
             "formattedAddress": "123 Main St",
-            "geofence": {"center": {"latitude": 30.0, "longitude": -97.0}},
+            "geofence": {
+                "circle": {
+                    "latitude": 30.0,
+                    "longitude": -97.0,
+                    "radiusMeters": 10,
+                }
+            },
         },
         {
             "id": "2",
             "name": "Foo",
             "formattedAddress": "456 Other",
-            "geofence": {"center": {"latitude": 30.0, "longitude": -97.0}},
+            "geofence": {
+                "circle": {
+                    "latitude": 30.0,
+                    "longitude": -97.0,
+                    "radiusMeters": 10,
+                }
+            },
         },
     ]
     m = probable_match(row_name, row_addr, 30.0, -97.0, cand, distance_threshold_m=25.0)
@@ -60,13 +94,25 @@ def test_probable_match_tie_break_by_name():
             "id": "1",
             "name": "Foo",
             "formattedAddress": "456 Other",
-            "geofence": {"center": {"latitude": 30.0, "longitude": -97.0}},
+            "geofence": {
+                "circle": {
+                    "latitude": 30.0,
+                    "longitude": -97.0,
+                    "radiusMeters": 10,
+                }
+            },
         },
         {
             "id": "2",
             "name": "Bar",
             "formattedAddress": "789 Else",
-            "geofence": {"center": {"latitude": 30.0, "longitude": -97.0}},
+            "geofence": {
+                "circle": {
+                    "latitude": 30.0,
+                    "longitude": -97.0,
+                    "radiusMeters": 10,
+                }
+            },
         },
     ]
     m = probable_match(row_name, row_addr, 30.0, -97.0, cand, distance_threshold_m=25.0)
