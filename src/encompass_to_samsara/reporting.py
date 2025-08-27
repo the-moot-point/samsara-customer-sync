@@ -25,7 +25,18 @@ def ensure_out_dir(out_dir: str) -> None:
 def write_jsonl(path: str, actions: list[Action]) -> None:
     with open(path, "w", encoding="utf-8") as f:
         for a in actions:
-            f.write(json.dumps(asdict(a), ensure_ascii=False) + "\n")
+            data = asdict(a)
+            payload = data.get("payload")
+            if isinstance(payload, dict):
+                geo = payload.get("geofence")
+                if isinstance(geo, dict):
+                    circle = geo.get("circle")
+                    if isinstance(circle, dict) and "radiusMeters" in circle:
+                        try:
+                            circle["radiusMeters"] = int(circle["radiusMeters"])
+                        except (TypeError, ValueError):
+                            pass
+            f.write(json.dumps(data, ensure_ascii=False) + "\n")
 
 def write_csv(path: str, rows: list[dict], fieldnames: list[str]) -> None:
     with open(path, "w", encoding="utf-8", newline="") as f:
