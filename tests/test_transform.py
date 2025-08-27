@@ -1,4 +1,4 @@
-from encompass_to_samsara.transform import compute_fingerprint, normalize, to_address_payload, SourceRow, validate_lat_lon
+from encompass_to_samsara.transform import compute_fingerprint, normalize, to_address_payload, SourceRow, validate_lat_lon, diff_address
 
 def test_normalize_and_fingerprint_stability():
     n1 = normalize("  Acme  Corp, Inc. ")
@@ -51,3 +51,23 @@ def test_validate_lat_lon():
     assert validate_lat_lon(90, 180)
     assert not validate_lat_lon(91, 0)
     assert not validate_lat_lon(0, 181)
+
+
+def test_diff_address_normalizes_center_geofence():
+    existing = {
+        "geofence": {
+            "radiusMeters": 50,
+            "center": {"latitude": 10.0, "longitude": 20.0},
+        }
+    }
+    desired = {
+        "geofence": {
+            "circle": {
+                "radiusMeters": 50,
+                "latitude": 10.0,
+                "longitude": 20.0,
+            }
+        }
+    }
+    patch = diff_address(existing, desired)
+    assert patch == {}

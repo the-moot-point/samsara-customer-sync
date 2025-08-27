@@ -93,6 +93,50 @@ def compute_fingerprint(name: str, status: str, formatted_addr: str) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+def normalize_geofence(geo: dict | None) -> dict | None:
+    """Return geofence in canonical circle form.
+
+    Accepts existing API geofence schemas like
+    ``{"radiusMeters": 50, "center": {"latitude": 1, "longitude": 2}}``
+    and returns ``{"circle": {"latitude": 1, "longitude": 2, "radiusMeters": 50}}``.
+    If a polygon geofence is provided, it is returned unchanged.
+    """
+    if not geo:
+        return None
+    # Preserve polygons untouched
+    if isinstance(geo, dict) and geo.get("polygon"):
+        return geo
+    circle = geo.get("circle") if isinstance(geo, dict) else None
+    if isinstance(circle, dict):
+        radius = circle.get("radiusMeters")
+        try:
+            radius = int(radius) if radius is not None else radius
+        except (TypeError, ValueError):
+            pass
+        return {
+            "circle": {
+                "latitude": circle.get("latitude"),
+                "longitude": circle.get("longitude"),
+                "radiusMeters": radius,
+            }
+        }
+    center = geo.get("center") if isinstance(geo, dict) else None
+    radius = geo.get("radiusMeters") if isinstance(geo, dict) else None
+    if isinstance(center, dict) and radius is not None:
+        try:
+            radius = int(radius)
+        except (TypeError, ValueError):
+            pass
+        return {
+            "circle": {
+                "latitude": center.get("latitude"),
+                "longitude": center.get("longitude"),
+                "radiusMeters": radius,
+            }
+        }
+    return geo
+
+
 def clean_external_ids(ext: dict[str, Any]) -> dict[str, Any]:
     """Return a copy of ``ext`` with a single canonical Encompass ID key."""
     out = ext.copy()
@@ -126,13 +170,15 @@ def to_address_payload(
 
     geofence = None
     if validate_lat_lon(row.lat, row.lon):
-        geofence = {
-            "circle": {
-                "latitude": row.lat,
-                "longitude": row.lon,
-                "radiusMeters": radius_m,
+        geofence = normalize_geofence(
+            {
+                "circle": {
+                    "latitude": row.lat,
+                    "longitude": row.lon,
+                    "radiusMeters": radius_m,
+                }
             }
-        }
+        )
 
     payload: dict[str, Any] = {
         "name": row.name,
@@ -210,9 +256,9 @@ def diff_address(existing: dict, desired: dict) -> dict:
     if (existing.get("formattedAddress") or "") != (desired.get("formattedAddress") or ""):
         patch["formattedAddress"] = desired.get("formattedAddress")
     # geofence (compare circle lat/lon and radius)
-    e_geo = existing.get("geofence") or {}
-    d_geo = desired.get("geofence") or {}
-    skip_geofence = bool(e_geo.get("polygon")) or _has_updated_geofence_tag(existing)
+    e_geo = normalize_geofence(existing.get("geofence")) or {}
+    d_geo = normalize_geofence(desired.get("geofence")) or {}
+    skip_geofence = bool((existing.get("geofence") or {}).get("polygon")) or _has_updated_geofence_tag(existing)
     if not skip_geofence:
         if bool(d_geo) != bool(e_geo):
             patch["geofence"] = d_geo or None
