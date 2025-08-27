@@ -27,7 +27,7 @@ def test_cli_full_actions_no_delta(tmp_path, base_responses):
         "Account Status": "Active",
         "Latitude": "30.1",
         "Longitude": "-97.7",
-        "Report Company Address": "123 A St",
+        "Report Address": "123 A St",
         "Location": "Austin",
         "Company": "JECO",
         "Customer Type": "Retail",
