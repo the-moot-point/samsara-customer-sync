@@ -94,8 +94,12 @@ def test_full_upsert_and_quarantine(tmp_path, token_env, base_responses):
     kinds = [a["kind"] for a in acts]
     assert kinds.count("create") == 2
     assert "quarantine" in kinds
-    create_geos = [a["payload"].get("geofence") for a in acts if a["kind"] == "create"]
-    assert all(g and "circle" in g for g in create_geos)
+    geos = [
+        a["payload"]["geofence"]
+        for a in acts
+        if a.get("payload") and a["payload"].get("geofence")
+    ]
+    assert geos and all("circle" in g and "center" not in g for g in geos)
     # Report exists
     assert (out_dir / "sync_report.csv").exists()
     assert (out_dir / "state.json").exists()
@@ -130,11 +134,8 @@ def test_reuse_address_by_name(tmp_path, token_env, base_responses):
             "name": "Foo",
             "formattedAddress": "Old",
             "geofence": {
-                "circle": {
-                    "latitude": 0.0,
-                    "longitude": 0.0,
-                    "radiusMeters": 50,
-                }
+                "radiusMeters": 50,
+                "center": {"latitude": 0.0, "longitude": 0.0},
             },
         }
     ]
@@ -178,7 +179,12 @@ def test_reuse_address_by_name(tmp_path, token_env, base_responses):
     with open(out_dir / "actions.jsonl", encoding="utf-8") as f:
         acts = [json.loads(line) for line in f]
     assert acts[0]["kind"] == "update"
-    assert "circle" in acts[0]["payload"]["geofence"]
+    geos = [
+        a["payload"]["geofence"]
+        for a in acts
+        if a.get("payload") and a["payload"].get("geofence")
+    ]
+    assert geos and all("circle" in g and "center" not in g for g in geos)
 
 
 def test_full_skip_inactive_status(tmp_path, token_env, base_responses):
