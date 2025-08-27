@@ -1,10 +1,9 @@
 import json
+import logging
 from unittest.mock import Mock
 
 import pytest
 import requests
-
-from encompass_to_samsara.samsara_client import SamsaraClient
 
 
 def make_response(status_code: int, json_body=None, headers=None):
@@ -61,3 +60,20 @@ def test_list_addresses_cursor_pagination(monkeypatch, client):
     assert items == [{"id": "1"}, {"id": "2"}, {"id": "3"}]
     assert mock_req.call_count == 2
     assert mock_req.call_args_list[1][1]["params"]["after"] == "abc"
+
+
+def test_create_address_error_logging(monkeypatch, client, caplog):
+    payload = {"name": "foo"}
+    resp = make_response(400, {"message": "Invalid address", "requestId": "req-123"})
+    mock_req = Mock(return_value=resp)
+    monkeypatch.setattr(client, "request", mock_req)
+
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(requests.HTTPError) as exc:
+            client.create_address(payload)
+
+    msg = str(exc.value)
+    assert "Invalid address" in msg
+    assert "req-123" in msg
+    # ensure payload logged
+    assert any("payload={'name': 'foo'}" in record.getMessage() for record in caplog.records)

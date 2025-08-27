@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import json
 import logging
 import os
 import random
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any
 
 import requests
 
@@ -15,7 +14,7 @@ LOG = logging.getLogger(__name__)
 
 def _utc_ts() -> str:
     import datetime
-    return datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc).isoformat()
+    return datetime.datetime.utcnow().replace(tzinfo=datetime.UTC).isoformat()
 
 
 @dataclass
@@ -110,10 +109,10 @@ class SamsaraClient:
 
     # --------------- Endpoints ---------------
 
-    def list_addresses(self, limit: int = 200) -> List[Dict[str, Any]]:
+    def list_addresses(self, limit: int = 200) -> list[dict[str, Any]]:
         """Iterate through all addresses (handling pagination if present)."""
-        out: List[Dict[str, Any]] = []
-        page_token: Optional[str] = None
+        out: list[dict[str, Any]] = []
+        page_token: str | None = None
         token_param = "pageToken"
         while True:
             params = {"limit": limit}
@@ -141,17 +140,35 @@ class SamsaraClient:
                 break
         return out
 
-    def get_address(self, addr_id: str) -> Dict[str, Any]:
+    def get_address(self, addr_id: str) -> dict[str, Any]:
         r = self.request("GET", f"/addresses/{addr_id}")
         r.raise_for_status()
         return r.json()
 
-    def create_address(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+    def create_address(self, payload: dict[str, Any]) -> dict[str, Any]:
         r = self.request("POST", "/addresses", json_body=payload)
-        r.raise_for_status()
+        try:
+            r.raise_for_status()
+        except requests.HTTPError as e:
+            try:
+                data = r.json()
+            except ValueError:
+                data = {}
+            message = data.get("message")
+            request_id = data.get("requestId")
+            details = ", ".join(
+                f"{k}: {v}"
+                for k, v in (("message", message), ("requestId", request_id))
+                if v
+            )
+            LOG.error("Failed to create address payload=%s response=%s", payload, data)
+            msg = str(e)
+            if details:
+                msg = f"{msg} ({details})"
+            raise requests.HTTPError(msg, response=r) from e
         return r.json()
 
-    def patch_address(self, addr_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    def patch_address(self, addr_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         r = self.request("PATCH", f"/addresses/{addr_id}", json_body=payload)
         r.raise_for_status()
         return r.json()
@@ -160,8 +177,8 @@ class SamsaraClient:
         r = self.request("DELETE", f"/addresses/{addr_id}")
         r.raise_for_status()
 
-    def list_tags(self, limit: int = 200) -> List[Dict[str, Any]]:
-        out: List[Dict[str, Any]] = []
+    def list_tags(self, limit: int = 200) -> list[dict[str, Any]]:
+        out: list[dict[str, Any]] = []
         page_token = None
         while True:
             params = {"limit": limit}
