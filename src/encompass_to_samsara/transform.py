@@ -127,8 +127,11 @@ def to_address_payload(
     geofence = None
     if validate_lat_lon(row.lat, row.lon):
         geofence = {
-            "radiusMeters": radius_m,
-            "center": {"latitude": row.lat, "longitude": row.lon},
+            "circle": {
+                "latitude": row.lat,
+                "longitude": row.lon,
+                "radiusMeters": radius_m,
+            }
         }
 
     payload: dict[str, Any] = {
