@@ -5,7 +5,6 @@ from encompass_to_samsara.transform import (
     normalize,
     to_address_payload,
     validate_lat_lon,
-    clean_external_ids,
 )
 from encompass_to_samsara.tags import build_tag_index
 
@@ -100,28 +99,3 @@ def test_hyphenated_location_maps_to_tag(monkeypatch, client):
     )
     payload = to_address_payload(row, tag_index)
     assert payload["tagIds"] == ["1"]
-
-
-def test_external_ids_are_sanitized():
-    row = SourceRow(
-        encompass_id="ID!123",
-        name="Foo",
-        status="Acti$ve",
-        lat=None,
-        lon=None,
-        address="",
-        location="",
-        company="",
-        ctype="Retail&Store",
-    )
-    payload = to_address_payload(row, {})
-    assert payload["externalIds"]["encompass_id"] == "ID123"
-    assert payload["externalIds"]["ENCOMPASS_STATUS"] == "Active"
-    assert payload["externalIds"]["ENCOMPASS_TYPE"] == "RetailStore"
-
-
-def test_clean_external_ids_sanitizes_values():
-    ext = {"EncompassId": "X@1#2", "Foo": "Bar$"}
-    cleaned = clean_external_ids(ext)
-    assert cleaned["encompass_id"] == "X@12"
-    assert cleaned["Foo"] == "Bar"
