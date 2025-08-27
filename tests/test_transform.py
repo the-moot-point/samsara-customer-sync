@@ -6,6 +6,7 @@ from encompass_to_samsara.transform import (
     to_address_payload,
     validate_lat_lon,
 )
+from encompass_to_samsara.tags import build_tag_index
 
 
 def test_normalize_and_fingerprint_stability():
@@ -27,7 +28,7 @@ def test_payload_includes_scope_and_tags():
         company="JECO",
         ctype="Retail",
     )
-    tags = {"managedby:encompasssync":"1", "austin":"10", "jeco":"20", "candidatedelete":"2"}
+    tags = {"managedbyencompasssync":"1", "austin":"10", "jeco":"20", "candidatedelete":"2"}
     payload = to_address_payload(row, tags, radius_m=75)
     assert payload["externalIds"]["encompass_id"] == "C123"
     assert payload["externalIds"]["ENCOMPASS_MANAGED"] == "1"
@@ -79,3 +80,22 @@ def test_diff_address_normalizes_center_geofence():
     }
     patch = diff_address(existing, desired)
     assert patch == {}
+
+
+def test_hyphenated_location_maps_to_tag(monkeypatch, client):
+    sample_tags = [{"id": "1", "name": "Austin North"}]
+    monkeypatch.setattr(client, "list_tags", lambda: sample_tags)
+    tag_index = build_tag_index(client)
+    row = SourceRow(
+        encompass_id="C1",
+        name="Foo",
+        status="Active",
+        lat=None,
+        lon=None,
+        address="",
+        location="Austin - North",
+        company="",
+        ctype="",
+    )
+    payload = to_address_payload(row, tag_index)
+    assert payload["tagIds"] == ["1"]
