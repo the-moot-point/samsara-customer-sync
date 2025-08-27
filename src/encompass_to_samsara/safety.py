@@ -1,11 +1,8 @@
 from __future__ import annotations
 
 import csv
-import json
 import logging
-import os
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Iterable, List, Optional, Set
+from datetime import UTC, datetime, timedelta
 
 LOG = logging.getLogger(__name__)
 
@@ -19,7 +16,7 @@ def load_warehouses(path: str) -> tuple[set[str], set[str]]:
     names: set[str] = set()
     if path.lower().endswith((".yaml", ".yml")):
         import yaml  # type: ignore
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = yaml.safe_load(f) or []
             if isinstance(data, dict):
                 data = data.get("warehouses") or []
@@ -31,7 +28,7 @@ def load_warehouses(path: str) -> tuple[set[str], set[str]]:
                 if nm:
                     names.add(nm.lower())
     else:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for r in reader:
                 sid = str(r.get("samsara_id") or "").strip()
@@ -72,7 +69,7 @@ def is_managed(address: dict, managed_tag_id: str | None) -> bool:
     return False
 
 def now_utc_iso() -> str:
-    return datetime.utcnow().replace(tzinfo=timezone.utc).isoformat()
+    return datetime.utcnow().replace(tzinfo=UTC).isoformat()
 
 def eligible_for_hard_delete(addr_id: str, state: dict, retention_days: int) -> bool:
     cand = (state.get("candidate_deletes") or {}).get(str(addr_id))
@@ -82,4 +79,4 @@ def eligible_for_hard_delete(addr_id: str, state: dict, retention_days: int) -> 
         ts = datetime.fromisoformat(cand)
     except Exception:
         return False
-    return (datetime.utcnow().replace(tzinfo=timezone.utc) - ts) >= timedelta(days=retention_days)
+    return (datetime.utcnow().replace(tzinfo=UTC) - ts) >= timedelta(days=retention_days)

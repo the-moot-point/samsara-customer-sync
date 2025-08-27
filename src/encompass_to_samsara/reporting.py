@@ -4,8 +4,7 @@ import csv
 import json
 import logging
 import os
-from dataclasses import dataclass, asdict
-from typing import Any, Dict, List
+from dataclasses import asdict, dataclass
 
 from .transform import normalize_geofence
 

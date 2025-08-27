@@ -1,4 +1,5 @@
-from encompass_to_samsara.state import load_state, save_state, DEFAULT_STATE
+from encompass_to_samsara.state import DEFAULT_STATE, load_state, save_state
+
 
 def test_load_state_missing_file_returns_default(tmp_path):
     path = tmp_path / "state.json"

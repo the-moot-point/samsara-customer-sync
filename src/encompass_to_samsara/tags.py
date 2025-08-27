@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, Optional
 
 from .samsara_client import SamsaraClient
 
@@ -25,7 +24,7 @@ def build_tag_index(client: SamsaraClient) -> dict[str, str]:
     return index
 
 
-def resolve_tag_id(index: dict[str, str], name: str) -> Optional[str]:
+def resolve_tag_id(index: dict[str, str], name: str) -> str | None:
     if not name:
         return None
     return index.get(name.lower())
