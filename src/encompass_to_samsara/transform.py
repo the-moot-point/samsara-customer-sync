@@ -41,8 +41,8 @@ def normalize(s: str | None) -> str:
     if not s:
         return ""
     s2 = s.strip().lower()
-    s2 = RE_SPACES.sub(" ", s2)
     s2 = RE_PUNCT.sub("", s2)
+    s2 = RE_SPACES.sub(" ", s2)
     return s2.strip()
 
 def canonical_address(addr: str | None) -> str:
@@ -158,13 +158,13 @@ def to_address_payload(
 
     tag_ids: list[str] = []
     # scope tag
-    t = tag_name_to_id.get(managed_tag_name.lower())
+    t = tag_name_to_id.get(normalize(managed_tag_name))
     if t:
         tag_ids.append(t)
     # Location & Company tags
     for tag_val in [row.location, row.company]:
         if tag_val:
-            tid = tag_name_to_id.get(tag_val.lower())
+            tid = tag_name_to_id.get(normalize(tag_val))
             if tid and tid not in tag_ids:
                 tag_ids.append(tid)
 
