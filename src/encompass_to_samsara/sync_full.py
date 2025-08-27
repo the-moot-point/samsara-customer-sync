@@ -297,8 +297,9 @@ def run_full(
             state["candidate_deletes"].pop(aid, None)
             state["fingerprints"].pop(aid, None)
 
-    # Write outputs
-    write_jsonl(f"{out_dir}/actions.jsonl", actions)
+    # Write outputs. Pass a copy of the actions list so that serialization
+    # cannot accidentally mutate the in-memory actions collected above.
+    write_jsonl(f"{out_dir}/actions.jsonl", list(actions))
     write_csv(f"{out_dir}/dry_run_diff.csv", dry_rows, ["encompass_id", "name", "action"])
     summary = summarize(actions)
     report_rows = [{"metric": k, "value": v} for k, v in sorted(summary.items())]

@@ -51,6 +51,9 @@ def full_cmd(
     apply: bool,
 ) -> None:
     client = SamsaraClient()
+    # Dispatch directly to run_full. All action handling occurs inside run_full
+    # which instantiates its own actions list, ensuring this CLI command
+    # remains stateless and isolated from other subcommands.
     run_full(
         client,
         encompass_csv=encompass_csv,
