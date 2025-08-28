@@ -99,3 +99,24 @@ def test_hyphenated_location_maps_to_tag(monkeypatch, client):
     )
     payload = to_address_payload(row, tag_index)
     assert payload["tagIds"] == ["1"]
+
+
+def test_to_address_payload_strips_invalid_chars_from_ctype():
+    row = SourceRow(
+        encompass_id="C42",
+        name="Foo",
+        status="Active",
+        lat=None,
+        lon=None,
+        address="",
+        location="",
+        company="",
+        ctype="Convenience*",
+    )
+    payload = to_address_payload(row, {})
+    ext = payload["externalIds"]
+    assert ext["ENCOMPASS_TYPE"] == "Convenience"
+    assert ext["encompass_id"] == "C42"
+    assert ext["ENCOMPASS_STATUS"] == "Active"
+    assert ext["ENCOMPASS_MANAGED"] == "1"
+    assert ext["ENCOMPASS_FINGERPRINT"] == compute_fingerprint("Foo", "Active", "")

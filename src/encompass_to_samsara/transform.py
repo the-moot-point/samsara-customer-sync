@@ -191,7 +191,9 @@ def to_address_payload(
         },
     }
     if row.ctype:
-        payload["externalIds"]["ENCOMPASS_TYPE"] = row.ctype
+        ctype = RE_PUNCT.sub("", row.ctype).strip()
+        if ctype:
+            payload["externalIds"]["ENCOMPASS_TYPE"] = ctype
 
     if geofence:
         payload["geofence"] = geofence
