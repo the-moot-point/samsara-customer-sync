@@ -21,7 +21,6 @@ REQUIRED_COLUMNS = [
     "Report Address",
     "Location",
     "Company",
-    "Customer Type",
 ]
 
 @dataclass
@@ -34,8 +33,30 @@ class SourceRow:
     address: str
     location: str
     company: str
-    ctype: str
     action: str | None = None  # for daily delta
+
+    def __init__(
+        self,
+        encompass_id: str,
+        name: str,
+        status: str,
+        lat: float | None,
+        lon: float | None,
+        address: str,
+        location: str,
+        company: str,
+        action: str | None = None,
+        **_: Any,
+    ) -> None:
+        self.encompass_id = encompass_id
+        self.name = name
+        self.status = status
+        self.lat = lat
+        self.lon = lon
+        self.address = address
+        self.location = location
+        self.company = company
+        self.action = action
 
 def normalize(s: str | None) -> str:
     if not s:
@@ -75,7 +96,6 @@ def read_encompass_csv(path: str) -> list[SourceRow]:
                     address=str(r.get("Report Address") or "").strip(),
                     location=str(r.get("Location") or "").strip(),
                     company=str(r.get("Company") or "").strip(),
-                    ctype=str(r.get("Customer Type") or "").strip(),
                     action=(str(r.get("Action") or "").strip().lower() or None),
                 )
             )
@@ -190,8 +210,6 @@ def to_address_payload(
             "ENCOMPASS_FINGERPRINT": fp,
         },
     }
-    if row.ctype:
-        payload["externalIds"]["ENCOMPASS_TYPE"] = row.ctype
 
     if geofence:
         payload["geofence"] = geofence
@@ -281,13 +299,15 @@ def diff_address(existing: dict, desired: dict) -> dict:
         "ENCOMPASS_STATUS",
         "ENCOMPASS_MANAGED",
         "ENCOMPASS_FINGERPRINT",
-        "ENCOMPASS_TYPE",
     ]:
         if k in d_ext and e_ext.get(k) != d_ext.get(k):
             ext_patch[k] = d_ext.get(k)
     if ext_patch or e_ext != e_ext_raw:
         ext_merged = e_ext.copy()
         ext_merged.update(ext_patch)
+        for k, v in d_ext.items():
+            if k not in ext_merged:
+                ext_merged[k] = v
         patch["externalIds"] = ext_merged
 
     # tags
