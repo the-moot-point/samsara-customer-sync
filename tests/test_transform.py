@@ -1,5 +1,8 @@
+import logging
+
 from encompass_to_samsara.transform import (
     SourceRow,
+    clean_external_ids,
     compute_fingerprint,
     diff_address,
     normalize,
@@ -99,3 +102,18 @@ def test_hyphenated_location_maps_to_tag(monkeypatch, client):
     )
     payload = to_address_payload(row, tag_index)
     assert payload["tagIds"] == ["1"]
+
+
+def test_clean_external_ids_drops_invalid_keys(caplog):
+    caplog.set_level(logging.DEBUG)
+    ext = {
+        "valid": "1",
+        "EncompassId": "C1",
+        "bad-key": "2",
+        "x" * 33: "3",
+    }
+    cleaned = clean_external_ids(ext)
+    assert cleaned == {"valid": "1", "encompassid": "C1"}
+    assert "bad-key" not in cleaned
+    assert ("x" * 33) not in cleaned
+    assert "bad-key" in caplog.text

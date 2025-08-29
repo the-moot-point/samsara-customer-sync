@@ -61,7 +61,6 @@ def test_diff_address_returns_only_changes():
             "encompassstatus": "Inactive",
             "encompassmanaged": "1",
             "fingerprint": "fp2",
-            "ENCOMPASS_TYPE": "Retail",
             "OTHER": "keep",
         },
     }

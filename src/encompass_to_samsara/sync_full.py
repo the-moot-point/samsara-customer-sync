@@ -73,6 +73,16 @@ def run_full(
     candidate_tag_id = resolve_tag_id(tags_index, CANDIDATE_DELETE_TAG)
 
     samsara_addrs = client.list_addresses()
+    for a in samsara_addrs:
+        orig_ext = a.get("externalIds") or {}
+        cleaned = clean_external_ids(orig_ext)
+        if cleaned != orig_ext:
+            LOG.debug(
+                "dropping legacy external IDs for address %s: %s",
+                a.get("id"),
+                set(orig_ext) - set(cleaned),
+            )
+        a["externalIds"] = cleaned
     # Index by encompass_id and by id
     by_eid = index_addresses_by_external_id(samsara_addrs)
 

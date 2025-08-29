@@ -11,6 +11,7 @@ LOG = logging.getLogger(__name__)
 
 RE_SPACES = re.compile(r"\s+")
 RE_PUNCT = re.compile(r"[^\w\s]")
+RE_EXTERNAL_KEY = re.compile(r"^[A-Za-z0-9]{1,32}$")
 
 REQUIRED_COLUMNS = [
     "Customer ID",
@@ -164,35 +165,42 @@ def clean_external_ids(ext: dict[str, Any]) -> dict[str, Any]:
     lowercase names to ensure backward compatibility.
     """
     out = ext.copy()
+    migrated: list[str] = []
 
-    eid = (
-        out.pop("EncompassId", None)
-        or out.pop("ENCOMPASS_ID", None)
-        or out.pop("encompass_id", None)
-        or out.pop("ENCOMPASSID", None)
-    )
+    def _pop_legacy(keys: list[str], canonical: str) -> Any:
+        for k in keys:
+            if k in out:
+                migrated.append(f"{k}->{canonical}")
+                val = out.pop(k)
+                if val is not None:
+                    return val
+        return None
+
+    eid = _pop_legacy(["EncompassId", "ENCOMPASS_ID", "encompass_id", "ENCOMPASSID"], "encompassid")
     if eid and "encompassid" not in out:
         out["encompassid"] = eid
 
-    status = (
-        out.pop("ENCOMPASS_STATUS", None)
-        or out.pop("encompass_status", None)
-        or out.pop("encompassstatus", None)
-    )
+    status = _pop_legacy(["ENCOMPASS_STATUS", "encompass_status", "encompassstatus"], "encompassstatus")
     if status and "encompassstatus" not in out:
         out["encompassstatus"] = status
 
-    managed = (
-        out.pop("ENCOMPASS_MANAGED", None)
-        or out.pop("encompass_managed", None)
-        or out.pop("encompassmanaged", None)
-    )
+    managed = _pop_legacy(["ENCOMPASS_MANAGED", "encompass_managed", "encompassmanaged"], "encompassmanaged")
     if managed and "encompassmanaged" not in out:
         out["encompassmanaged"] = managed
 
-    fp = out.pop("ENCOMPASS_FINGERPRINT", None) or out.pop("fingerprint", None)
+    fp = _pop_legacy(["ENCOMPASS_FINGERPRINT", "fingerprint"], "fingerprint")
     if fp and "fingerprint" not in out:
         out["fingerprint"] = fp
+
+    # Drop keys with non-alphanumeric characters or longer than 32 chars
+    dropped: list[str] = []
+    for k in list(out.keys()):
+        if not RE_EXTERNAL_KEY.fullmatch(k):
+            dropped.append(k)
+            out.pop(k, None)
+
+    if migrated or dropped:
+        LOG.debug("clean_external_ids: migrated=%s dropped=%s", migrated, dropped)
 
     return out
 
