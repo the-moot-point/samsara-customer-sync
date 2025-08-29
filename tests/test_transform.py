@@ -35,7 +35,6 @@ def test_payload_includes_scope_and_tags():
     tags = {"managedbyencompasssync":"1", "austin":"10", "jeco":"20", "candidatedelete":"2"}
     payload = to_address_payload(row, tags, radius_m=75)
     assert payload["externalIds"]["EncompassId"] == "C123"
-    assert payload["externalIds"]["encompassmanaged"] == "1"
     assert "fingerprint" in payload["externalIds"]
     assert set(payload["geofence"].keys()) == {"circle"}
     assert payload["geofence"]["circle"]["radiusMeters"] == 75
@@ -151,7 +150,7 @@ def test_to_address_payload_sanitizes_external_ids():
     payload = to_address_payload(row, {})
     ext = payload["externalIds"]
     assert ext["EncompassId"] == "ID" + "1" * 40
-    assert ext["encompassstatus"] == "Active" + "2" * 40
+    assert "encompassstatus" not in ext
     assert len(ext["fingerprint"]) == 64
 
 
@@ -169,7 +168,7 @@ def test_to_address_payload_produces_compliant_external_ids():
     )
     payload = to_address_payload(row, {})
     ext = payload["externalIds"]
-    assert set(ext.keys()) <= {"EncompassId", "encompassstatus", "encompassmanaged", "fingerprint"}
+    assert set(ext.keys()) <= {"EncompassId", "fingerprint"}
     allowed = re.compile(r"^[A-Za-z0-9_.:-]+$")
     assert all(allowed.match(k) for k in ext)
     assert all(allowed.match(v) for v in ext.values())
@@ -185,10 +184,10 @@ def test_diff_address_sanitizes_external_ids():
 
 def test_diff_address_drops_or_renames_invalid_external_ids():
     existing = {"externalIds": {"ENCOMPASS_ID": "id@123", "bad$key": "v1", "$$": "drop"}}
-    desired = {"externalIds": {"ENCOMPASS_STATUS": "Active#"}}
+    desired = {"externalIds": {}}
     patch = diff_address(existing, desired)
     ext = patch["externalIds"]
     allowed = re.compile(r"^[A-Za-z0-9_.:-]+$")
-    assert set(ext.keys()) == {"EncompassId", "badkey", "encompassstatus"}
+    assert set(ext.keys()) == {"EncompassId", "badkey"}
     assert all(allowed.match(k) for k in ext)
     assert all(allowed.match(v) for v in ext.values())
