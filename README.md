@@ -65,16 +65,16 @@ sync-e2s daily   --encompass-delta data/encompass_delta.csv   --warehouses data/
 
 ### Mapping
 
-- `Customer ID` → `externalIds.encompass_id` (required)
+- `Customer ID` → `externalIds.encompassid` (required)
 - `Customer Name` → `name`
 - `Report Address` (no company name) → `formattedAddress` (composed if needed)
 - `Latitude`,`Longitude` → geofence circle (default radius 50 m; configurable)
-- `Account Status` → `externalIds.ENCOMPASS_STATUS`
+- `Account Status` → `externalIds.encompassstatus`
 - `Location` → **Tag** (resolved via List Tags)
 - `Company` → **Tag** (resolved via List Tags)
 - `Customer Type` → ignored (optional: `externalIds.ENCOMPASS_TYPE`)
-- Scope markers: Tag **ManagedBy:EncompassSync** **and** `externalIds.ENCOMPASS_MANAGED="1"`
-- Fingerprint: `externalIds.ENCOMPASS_FINGERPRINT = sha256(normalize(name) + "|" + normalize(account_status) + "|" + normalize(formattedAddress))`
+- Scope markers: Tag **ManagedBy:EncompassSync** **and** `externalIds.encompassmanaged="1"`
+- Fingerprint: `externalIds.fingerprint = sha256(normalize(name) + "|" + normalize(account_status) + "|" + normalize(formattedAddress))`
 
 ### External ID requirements
 
@@ -84,15 +84,15 @@ sending to the API.
 
 Canonical keys used by this tool:
 
-- `encompass_id` – primary customer identifier
-- `ENCOMPASS_STATUS`
-- `ENCOMPASS_MANAGED`
-- `ENCOMPASS_FINGERPRINT`
+- `encompassid` – primary customer identifier
+- `encompassstatus`
+- `encompassmanaged`
+- `fingerprint`
 
 Sanitization & backward compatibility:
 
 - The CLI normalizes legacy keys `EncompassId` and `ENCOMPASS_ID` to the canonical
-  `encompass_id` and preserves other external IDs intact.
+  `encompassid` and preserves other external IDs intact.
 - When indexing existing addresses, all three key variants are recognized so older
   records remain discoverable.
 
@@ -105,16 +105,16 @@ raw_id = "ACME Store #1"
 safe_id = re.sub(r"[^A-Za-z0-9_.:-]", "_", raw_id)[:32]
 payload = {
     "externalIds": {
-        "encompass_id": safe_id,
-        "ENCOMPASS_STATUS": "ACTIVE",
-        "ENCOMPASS_MANAGED": "1",
+        "encompassid": safe_id,
+        "encompassstatus": "ACTIVE",
+        "encompassmanaged": "1",
     }
 }
 ```
 
 ### Safety rails
 
-- Only touch addresses with `externalIds.encompass_id` or tag `ManagedBy:EncompassSync`.
+- Only touch addresses with `externalIds.encompassid` or tag `ManagedBy:EncompassSync`.
 - Customers with `Account Status` `INACTIVE` are ignored unless explicitly deleted.
 - Two-step delete: tag `CandidateDelete`; hard-delete only with `--confirm-delete` **and**
   after retention window.
@@ -127,13 +127,13 @@ payload = {
 - `sync_report.csv` – summary counts and timing
 - `actions.jsonl` – one JSON object per action (create/update/delete/quarantine/skip/error)
 - `errors.csv` – structured error list
-- `duplicates.csv` – duplicate `Customer ID` in source, or duplicate `encompass_id` in Samsara
+- `duplicates.csv` – duplicate `Customer ID` in source, or duplicate `encompassid` in Samsara
 - `state.json` – persistent state (`id → fingerprint`, candidate-delete timestamps)
 
 ### Acceptance
 
 - Re-running `full`/`daily` with unchanged inputs → **zero** API writes (fingerprint idempotence)
-- All managed Samsara addresses carry `encompass_id` and scope markers
+- All managed Samsara addresses carry `encompassid` and scope markers
 - Company/Location tags resolved to correct IDs
 - Orphans quarantined or deleted only under explicit flags; warehouses never modified
 

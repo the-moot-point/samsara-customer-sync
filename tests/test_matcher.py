@@ -122,7 +122,7 @@ def test_probable_match_tie_break_by_name():
 
 def test_index_addresses_by_external_id():
     addrs = [
-        {"id": "a", "externalIds": {"encompass_id": "123"}},
+        {"id": "a", "externalIds": {"encompassid": "123"}},
         {"id": "b", "externalIds": {"ENCOMPASS_ID": "456"}},
         {"id": "c", "externalIds": {"other": "999"}},
         {"id": "d", "externalIds": {"EncompassId": "789"}},
