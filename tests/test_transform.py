@@ -2,7 +2,9 @@ from encompass_to_samsara.transform import (
     SourceRow,
     compute_fingerprint,
     diff_address,
+    clean_external_ids,
     normalize,
+    sanitize_external_id_value,
     to_address_payload,
     validate_lat_lon,
 )
@@ -99,3 +101,50 @@ def test_hyphenated_location_maps_to_tag(monkeypatch, client):
     )
     payload = to_address_payload(row, tag_index)
     assert payload["tagIds"] == ["1"]
+
+
+def test_sanitize_external_id_value_strips_and_truncates(caplog):
+    raw = "bad$$$" + "x" * 40
+    with caplog.at_level("WARNING"):
+        val = sanitize_external_id_value(raw)
+    assert val.startswith("bad")
+    assert len(val) == 32
+    assert any("invalid" in r.message for r in caplog.records)
+    assert any("truncated" in r.message for r in caplog.records)
+
+
+def test_clean_external_ids_sanitizes_and_drops(caplog):
+    ext = {"ENCOMPASS_ID": "id!!", "other": "good", "drop": "$$"}
+    with caplog.at_level("WARNING"):
+        cleaned = clean_external_ids(ext)
+    assert cleaned["encompassid"] == "id"
+    assert cleaned["other"] == "good"
+    assert "drop" not in cleaned
+
+
+def test_to_address_payload_sanitizes_external_ids():
+    row = SourceRow(
+        encompass_id="ID$$$" + "1" * 40,
+        name="Foo",
+        status="Active!@#" + "2" * 40,
+        lat=None,
+        lon=None,
+        address="",
+        location="",
+        company="",
+        ctype="",
+    )
+    payload = to_address_payload(row, {})
+    ext = payload["externalIds"]
+    assert ext["encompassid"] == "ID" + "1" * 30
+    assert ext["encompassstatus"] == "Active" + "2" * 26
+    assert len(ext["fingerprint"]) == 32
+
+
+def test_diff_address_sanitizes_external_ids():
+    existing = {"externalIds": {"encompassid": "id!!"}}
+    desired = {"externalIds": {"encompassid": "id@" + "1" * 40}}
+    patch = diff_address(existing, desired)
+    val = patch["externalIds"]["encompassid"]
+    assert val.startswith("id")
+    assert len(val) == 32
