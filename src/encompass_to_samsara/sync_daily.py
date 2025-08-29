@@ -101,8 +101,9 @@ def run_daily(
                         )
                 else:
                     ext = clean_external_ids(existing.get("externalIds") or {})
-                    if ext.get("ENCOMPASS_DELETE_CANDIDATE") != "1":
-                        patch = {"externalIds": ext | {"ENCOMPASS_DELETE_CANDIDATE": "1"}}
+                    if "encompass_delete_candidate" not in ext:
+                        marker = f"{now_utc_iso()[:19].replace(':', '').replace('-', '')}-{aid}"
+                        patch = {"externalIds": ext | {"ENCOMPASS_DELETE_CANDIDATE": marker}}
                         if apply:
                             client.patch_address(aid, patch)
                         actions.append(
