@@ -258,8 +258,9 @@ def run_full(
         else:
             # fallback to externalIds marker
             ext2 = clean_external_ids(addr.get("externalIds") or {})
-            if ext2.get("ENCOMPASS_DELETE_CANDIDATE") != "1":
-                patch = {"externalIds": ext2 | {"ENCOMPASS_DELETE_CANDIDATE": "1"}}
+            if "encompass_delete_candidate" not in ext2:
+                marker = f"{now_utc_iso()[:19].replace(':', '').replace('-', '')}-{aid}"
+                patch = {"externalIds": ext2 | {"ENCOMPASS_DELETE_CANDIDATE": marker}}
                 if apply:
                     client.patch_address(aid, patch)
                 actions.append(
