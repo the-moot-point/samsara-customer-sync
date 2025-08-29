@@ -76,6 +76,42 @@ sync-e2s daily   --encompass-delta data/encompass_delta.csv   --warehouses data/
 - Scope markers: Tag **ManagedBy:EncompassSync** **and** `externalIds.ENCOMPASS_MANAGED="1"`
 - Fingerprint: `externalIds.ENCOMPASS_FINGERPRINT = sha256(normalize(name) + "|" + normalize(account_status) + "|" + normalize(formattedAddress))`
 
+### External ID requirements
+
+Samsara restricts each `externalIds` key and value to **32 characters** from the set
+`[A-Za-z0-9_.:-]`. Values outside this set should be sanitized or replaced before
+sending to the API.
+
+Canonical keys used by this tool:
+
+- `encompass_id` – primary customer identifier
+- `ENCOMPASS_STATUS`
+- `ENCOMPASS_MANAGED`
+- `ENCOMPASS_FINGERPRINT`
+
+Sanitization & backward compatibility:
+
+- The CLI normalizes legacy keys `EncompassId` and `ENCOMPASS_ID` to the canonical
+  `encompass_id` and preserves other external IDs intact.
+- When indexing existing addresses, all three key variants are recognized so older
+  records remain discoverable.
+
+Usage example for a compliant external ID:
+
+```python
+import re
+
+raw_id = "ACME Store #1"
+safe_id = re.sub(r"[^A-Za-z0-9_.:-]", "_", raw_id)[:32]
+payload = {
+    "externalIds": {
+        "encompass_id": safe_id,
+        "ENCOMPASS_STATUS": "ACTIVE",
+        "ENCOMPASS_MANAGED": "1",
+    }
+}
+```
+
 ### Safety rails
 
 - Only touch addresses with `externalIds.encompass_id` or tag `ManagedBy:EncompassSync`.
