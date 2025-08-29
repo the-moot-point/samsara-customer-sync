@@ -29,14 +29,14 @@ def test_export_addresses(monkeypatch, tmp_path):
             "id": "100",
             "name": "Foo",
             "formattedAddress": "123 A St",
-            "externalIds": {"encompassid": "E1"},
+            "externalIds": {"EncompassId": "E1"},
             "tagIds": ["1"],
         },
         {
             "id": "200",
             "name": "Bar",
             "formattedAddress": "456 B St",
-            "externalIds": {"encompassid": "E2"},
+            "externalIds": {"EncompassId": "E2"},
             "tagIds": ["2"],
         },
     ]

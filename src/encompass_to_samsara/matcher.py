@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import math
 
-from .transform import canonical_address, normalize
+from .transform import canonical_address, clean_external_ids, normalize
 
 LOG = logging.getLogger(__name__)
 
@@ -21,14 +21,8 @@ def haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 def index_addresses_by_external_id(addresses: list[dict]) -> dict[str, dict]:
     idx: dict[str, dict] = {}
     for a in addresses:
-        ext = a.get("externalIds") or {}
-        eid = (
-            ext.get("encompassid")
-            or ext.get("ENCOMPASSID")
-            or ext.get("EncompassId")
-            or ext.get("ENCOMPASS_ID")
-            or ext.get("encompass_id")
-        )
+        ext = clean_external_ids(a.get("externalIds") or {})
+        eid = ext.get("EncompassId")
         if eid:
             idx[str(eid)] = a
     return idx

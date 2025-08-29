@@ -55,7 +55,7 @@ def test_daily_upsert_skip_when_unchanged(tmp_path, token_env, base_responses):
             "name": "Foo",
             "formattedAddress": "123 A St",
             "externalIds": {
-                "encompassid": "C1",
+                "EncompassId": "C1",
                 "encompassstatus": "Active",
                 "encompassmanaged": "1",
                 "fingerprint": fp,

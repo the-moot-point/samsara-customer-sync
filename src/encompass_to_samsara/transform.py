@@ -118,9 +118,9 @@ def compute_fingerprint(name: str, status: str, formatted_addr: str) -> str:
 def sanitize_external_id_value(v: Any) -> str | None:
     """Return ``v`` sanitized for use as an external ID value.
 
-    Removes disallowed characters, truncates values beyond ``MAX_EXT_ID_LEN``
-    characters, and returns ``None`` if nothing remains.  A warning is logged
-    whenever a value is modified or dropped.
+    Removes disallowed characters and returns ``None`` if nothing remains.  A
+    warning is logged whenever a value is modified or dropped.  Unlike keys,
+    values are not length limited.
     """
     if v is None:
         return None
@@ -130,17 +130,17 @@ def sanitize_external_id_value(v: Any) -> str | None:
     cleaned = RE_EXT_ID_ALLOWED.sub("", s)
     if cleaned != s:
         if cleaned:
-            LOG.warning("External ID value %r contained invalid characters; sanitized to %r", s, cleaned)
+            LOG.warning(
+                "External ID value %r contained invalid characters; sanitized to %r",
+                s,
+                cleaned,
+            )
         else:
-            LOG.warning("External ID value %r contained only invalid characters and was dropped", s)
+            LOG.warning(
+                "External ID value %r contained only invalid characters and was dropped",
+                s,
+            )
             return None
-    if len(cleaned) > MAX_EXT_ID_LEN:
-        LOG.warning(
-            "External ID value %r exceeded %d characters and was truncated",
-            s,
-            MAX_EXT_ID_LEN,
-        )
-        cleaned = cleaned[:MAX_EXT_ID_LEN]
     return cleaned
 
 
@@ -227,9 +227,9 @@ def normalize_geofence(geo: dict | None) -> dict | None:
 def clean_external_ids(ext: dict[str, Any]) -> dict[str, Any]:
     """Return a copy of ``ext`` using canonical external ID keys.
 
-    Legacy keys with underscores or mixed case are mapped to the new
-    lowercase names to ensure backward compatibility.  Values are sanitized
-    and any that become empty are dropped.
+    Legacy keys with underscores or mixed case are mapped to canonical names
+    to ensure backward compatibility. Values are sanitized and any that become
+    empty are dropped.
     """
     out: dict[str, Any] = {}
     for k, v in ext.items():
@@ -238,9 +238,11 @@ def clean_external_ids(ext: dict[str, Any]) -> dict[str, Any]:
         if sk and sv is not None:
             out[sk] = sv
 
-    eid = out.pop("encompass_id", None)
-    if eid and "encompassid" not in out:
-        out["encompassid"] = eid
+    eid1 = out.pop("encompass_id", None)
+    eid2 = out.pop("encompassid", None)
+    eid = eid1 if eid1 is not None else eid2
+    if eid is not None:
+        out["EncompassId"] = eid
 
     status = out.pop("encompass_status", None)
     if status and "encompassstatus" not in out:
@@ -297,7 +299,7 @@ def to_address_payload(
     }
 
     ext_ids = {
-        "encompassid": sanitize_external_id_value(row.encompass_id),
+        "EncompassId": sanitize_external_id_value(row.encompass_id),
         "encompassstatus": sanitize_external_id_value(row.status),
         "encompassmanaged": sanitize_external_id_value("1"),
         "fingerprint": sanitize_external_id_value(fp),
@@ -388,7 +390,7 @@ def diff_address(existing: dict, desired: dict) -> dict:
     d_ext = clean_external_ids(desired.get("externalIds") or {})
     ext_patch = {}
     for k in [
-        "encompassid",
+        "EncompassId",
         "encompassstatus",
         "encompassmanaged",
         "fingerprint",
