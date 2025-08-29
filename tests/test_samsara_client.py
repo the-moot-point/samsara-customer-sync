@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from unittest.mock import Mock
 
 import pytest
@@ -77,3 +78,22 @@ def test_create_address_error_logging(monkeypatch, client, caplog):
     assert "req-123" in msg
     # ensure payload logged
     assert any("payload={'name': 'foo'}" in record.getMessage() for record in caplog.records)
+
+
+def test_create_address_with_sanitized_external_ids(monkeypatch, client):
+    from encompass_to_samsara.transform import clean_external_ids
+
+    raw_payload = {"name": "foo", "externalIds": {"bad$key": "v!"}}
+    payload = raw_payload.copy()
+    payload["externalIds"] = clean_external_ids(raw_payload["externalIds"])
+    resp = make_response(200, {"id": "123"})
+    mock_req = Mock(return_value=resp)
+    monkeypatch.setattr(client, "request", mock_req)
+
+    result = client.create_address(payload)
+
+    assert result == {"id": "123"}
+    sent = mock_req.call_args[1]["json_body"]
+    allowed = re.compile(r"^[A-Za-z0-9_.:-]+$")
+    assert all(allowed.match(k) for k in sent["externalIds"])
+    assert all(allowed.match(v) for v in sent["externalIds"].values())

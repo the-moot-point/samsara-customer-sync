@@ -144,6 +144,42 @@ def sanitize_external_id_value(v: Any) -> str | None:
     return cleaned
 
 
+def sanitize_external_id_key(k: Any) -> str | None:
+    """Return ``k`` sanitized for use as an external ID key.
+
+    Mirrors :func:`sanitize_external_id_value` but always lowercases the result
+    to ensure canonical key names.  Keys consisting solely of invalid
+    characters are dropped.
+    """
+    if k is None:
+        return None
+    s = str(k).strip()
+    if not s:
+        return None
+    cleaned = RE_EXT_ID_ALLOWED.sub("", s)
+    if cleaned != s:
+        if cleaned:
+            LOG.warning(
+                "External ID key %r contained invalid characters; sanitized to %r",
+                s,
+                cleaned,
+            )
+        else:
+            LOG.warning(
+                "External ID key %r contained only invalid characters and was dropped",
+                s,
+            )
+            return None
+    if len(cleaned) > MAX_EXT_ID_LEN:
+        LOG.warning(
+            "External ID key %r exceeded %d characters and was truncated",
+            s,
+            MAX_EXT_ID_LEN,
+        )
+        cleaned = cleaned[:MAX_EXT_ID_LEN]
+    return cleaned.lower()
+
+
 def normalize_geofence(geo: dict | None) -> dict | None:
     """Return geofence in canonical circle form.
 
@@ -197,36 +233,24 @@ def clean_external_ids(ext: dict[str, Any]) -> dict[str, Any]:
     """
     out: dict[str, Any] = {}
     for k, v in ext.items():
+        sk = sanitize_external_id_key(k)
         sv = sanitize_external_id_value(v)
-        if sv is not None:
-            out[k] = sv
+        if sk and sv is not None:
+            out[sk] = sv
 
-    eid = (
-        out.pop("EncompassId", None)
-        or out.pop("ENCOMPASS_ID", None)
-        or out.pop("encompass_id", None)
-        or out.pop("ENCOMPASSID", None)
-    )
+    eid = out.pop("encompass_id", None)
     if eid and "encompassid" not in out:
         out["encompassid"] = eid
 
-    status = (
-        out.pop("ENCOMPASS_STATUS", None)
-        or out.pop("encompass_status", None)
-        or out.pop("encompassstatus", None)
-    )
+    status = out.pop("encompass_status", None)
     if status and "encompassstatus" not in out:
         out["encompassstatus"] = status
 
-    managed = (
-        out.pop("ENCOMPASS_MANAGED", None)
-        or out.pop("encompass_managed", None)
-        or out.pop("encompassmanaged", None)
-    )
+    managed = out.pop("encompass_managed", None)
     if managed and "encompassmanaged" not in out:
         out["encompassmanaged"] = managed
 
-    fp = out.pop("ENCOMPASS_FINGERPRINT", None) or out.pop("fingerprint", None)
+    fp = out.pop("encompass_fingerprint", None) or out.pop("fingerprint", None)
     if fp and "fingerprint" not in out:
         out["fingerprint"] = fp
 

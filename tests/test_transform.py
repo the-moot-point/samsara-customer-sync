@@ -1,3 +1,5 @@
+import re
+
 from encompass_to_samsara.transform import (
     SourceRow,
     compute_fingerprint,
@@ -113,6 +115,11 @@ def test_sanitize_external_id_value_strips_and_truncates(caplog):
     assert any("truncated" in r.message for r in caplog.records)
 
 
+def test_sanitize_external_id_value_allows_underscore():
+    val = sanitize_external_id_value("foo_bar-123")
+    assert val == "foo_bar-123"
+
+
 def test_clean_external_ids_sanitizes_and_drops(caplog):
     ext = {"ENCOMPASS_ID": "id!!", "other": "good", "drop": "$$"}
     with caplog.at_level("WARNING"):
@@ -120,6 +127,15 @@ def test_clean_external_ids_sanitizes_and_drops(caplog):
     assert cleaned["encompassid"] == "id"
     assert cleaned["other"] == "good"
     assert "drop" not in cleaned
+
+
+def test_clean_external_ids_sanitizes_keys(caplog):
+    ext = {"BAD$KEY": "v1!", "__KEEP__": "ok", "$$": "drop"}
+    with caplog.at_level("WARNING"):
+        cleaned = clean_external_ids(ext)
+    assert cleaned["badkey"] == "v1"
+    assert cleaned["__keep__"] == "ok"
+    assert "$$" not in cleaned
 
 
 def test_to_address_payload_sanitizes_external_ids():
@@ -141,6 +157,26 @@ def test_to_address_payload_sanitizes_external_ids():
     assert len(ext["fingerprint"]) == 32
 
 
+def test_to_address_payload_produces_compliant_external_ids():
+    row = SourceRow(
+        encompass_id="ID_$1",
+        name="Foo",
+        status="Active$@",
+        lat=None,
+        lon=None,
+        address="",
+        location="",
+        company="",
+        ctype="",
+    )
+    payload = to_address_payload(row, {})
+    ext = payload["externalIds"]
+    assert set(ext.keys()) <= {"encompassid", "encompassstatus", "encompassmanaged", "fingerprint"}
+    allowed = re.compile(r"^[A-Za-z0-9_.:-]+$")
+    assert all(allowed.match(k) for k in ext)
+    assert all(allowed.match(v) for v in ext.values())
+
+
 def test_diff_address_sanitizes_external_ids():
     existing = {"externalIds": {"encompassid": "id!!"}}
     desired = {"externalIds": {"encompassid": "id@" + "1" * 40}}
@@ -148,3 +184,14 @@ def test_diff_address_sanitizes_external_ids():
     val = patch["externalIds"]["encompassid"]
     assert val.startswith("id")
     assert len(val) == 32
+
+
+def test_diff_address_drops_or_renames_invalid_external_ids():
+    existing = {"externalIds": {"ENCOMPASS_ID": "id@123", "bad$key": "v1", "$$": "drop"}}
+    desired = {"externalIds": {"ENCOMPASS_STATUS": "Active#"}}
+    patch = diff_address(existing, desired)
+    ext = patch["externalIds"]
+    allowed = re.compile(r"^[A-Za-z0-9_.:-]+$")
+    assert set(ext.keys()) == {"encompassid", "badkey", "encompassstatus"}
+    assert all(allowed.match(k) for k in ext)
+    assert all(allowed.match(v) for v in ext.values())
