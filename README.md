@@ -69,11 +69,11 @@ sync-e2s daily   --encompass-delta data/encompass_delta.csv   --warehouses data/
 - `Customer Name` → `name`
 - `Report Address` (no company name) → `formattedAddress` (composed if needed)
 - `Latitude`,`Longitude` → geofence circle (default radius 50 m; configurable)
-- `Account Status` → `externalIds.encompassstatus`
+- `Account Status` → used to compute a fingerprint (not stored)
 - `Location` → **Tag** (resolved via List Tags)
 - `Company` → **Tag** (resolved via List Tags)
 - `Customer Type` → ignored (optional: `externalIds.ENCOMPASS_TYPE`)
-- Scope markers: Tag **ManagedBy:EncompassSync** **and** `externalIds.encompassmanaged="1"`
+- Scope marker: Tag **ManagedBy:EncompassSync**
 - Fingerprint: `externalIds.fingerprint = sha256(normalize(name) + "|" + normalize(account_status) + "|" + normalize(formattedAddress))`
 
 ### External ID requirements
@@ -85,8 +85,6 @@ sending to the API.
 Canonical keys used by this tool:
 
 - `encompassid` – primary customer identifier
-- `encompassstatus`
-- `encompassmanaged`
 - `fingerprint`
 
 Sanitization & backward compatibility:
@@ -106,8 +104,6 @@ safe_id = re.sub(r"[^A-Za-z0-9_.:-]", "_", raw_id)[:32]
 payload = {
     "externalIds": {
         "encompassid": safe_id,
-        "encompassstatus": "ACTIVE",
-        "encompassmanaged": "1",
     }
 }
 ```

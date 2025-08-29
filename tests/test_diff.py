@@ -17,8 +17,6 @@ def test_diff_address_returns_only_changes():
         "tagIds": ["1", "2"],
         "externalIds": {
             "EncompassId": "abc",
-            "ENCOMPASS_STATUS": "Active",
-            "ENCOMPASS_MANAGED": "1",
             "ENCOMPASS_FINGERPRINT": "fp1",
             "OTHER": "keep",
         },
@@ -37,8 +35,6 @@ def test_diff_address_returns_only_changes():
         "tagIds": ["1", "3"],
         "externalIds": {
             "EncompassId": "abc",
-            "encompassstatus": "Inactive",
-            "encompassmanaged": "1",
             "fingerprint": "fp2",
             "encompass_type": "Retail",
             "other": "keep",
@@ -58,8 +54,6 @@ def test_diff_address_returns_only_changes():
         "tagIds": ["1", "3"],
         "externalIds": {
             "EncompassId": "abc",
-            "encompassstatus": "Inactive",
-            "encompassmanaged": "1",
             "fingerprint": "fp2",
             "encompass_type": "Retail",
             "other": "keep",

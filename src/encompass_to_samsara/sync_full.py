@@ -137,14 +137,11 @@ def run_full(
                         tag_ids.append(str(t))
             if managed_tag_id and managed_tag_id not in tag_ids:
                 needs_scope = True
-            if ext.get("encompassmanaged") != "1":
-                needs_scope = True
             if _ext_encompass_id(ext) != r.encompass_id:
                 needs_scope = True
             if needs_scope and "externalIds" not in diff:
                 # inject ext and tags
                 diff["externalIds"] = clean_external_ids(existing.get("externalIds") or {})
-                diff["externalIds"]["encompassmanaged"] = "1"
                 diff["externalIds"]["EncompassId"] = r.encompass_id
             if needs_scope:
                 # ensure tagIds

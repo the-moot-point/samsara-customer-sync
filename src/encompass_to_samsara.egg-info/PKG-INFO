@@ -18,7 +18,7 @@ Requires-Dist: responses>=0.25.3; extra == "dev"
 Requires-Dist: ruff>=0.5.7; extra == "dev"
 Dynamic: license-file
 
-# Encompass → Samsara Sync (`sync-e2s`)
+# Samsara Customer Sync
 
 A production-ready Python 3.11+ CLI that keeps **Samsara Addresses** in lockstep with **Encompass**
 (Encompass is the source of truth). Supports a **one-time full refresh** and **daily incremental**
@@ -36,7 +36,7 @@ sync. Safe-by-default (dry-run), idempotent (fingerprints), auditable (reports +
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-cp .env.example .env   # fill token
+cp .env.example .env   # set SAMSARA_BEARER_TOKEN
 make test              # run tests
 make full-dry          # dry-run full refresh using sample paths
 # If the diff looks good:
@@ -47,8 +47,17 @@ make full-apply        # applies changes (and allows deletes per flags)
 
 Create a `.env` or export environment variables:
 
-- `SAMSARA_API_TOKEN` (required): API token for Samsara.
+- `SAMSARA_BEARER_TOKEN` (required): API token for Samsara.
 - `E2S_DEFAULT_RADIUS_METERS` (optional, default 50): geofence radius for new/updated addresses.
+
+### Export current Samsara addresses
+
+```bash
+export SAMSARA_BEARER_TOKEN=your_token
+python -m encompass_to_samsara.scripts.export_addresses
+```
+
+The script writes all existing Samsara addresses to `addresses.json`.
 
 ### CLI
 
@@ -70,6 +79,7 @@ sync-e2s daily   --encompass-delta data/encompass_delta.csv   --warehouses data/
 
 1. **Full Encompass CSV** with columns:
    `Customer ID, Customer Name, Account Status, Latitude, Longitude, Report Address, Location, Company, Customer Type`
+   - `Report Address` values should exclude company names
 2. **Daily delta CSV** (same columns, optional `Action` = `upsert|delete`)
 3. **`warehouses.csv`** (or `.yaml`) list of Samsara IDs/names never to modify/delete.
 
@@ -77,18 +87,51 @@ sync-e2s daily   --encompass-delta data/encompass_delta.csv   --warehouses data/
 
 - `Customer ID` → `externalIds.encompassid` (required)
 - `Customer Name` → `name`
-- `Report Address` → `formattedAddress` (composed if needed)
-- `Latitude`,`Longitude` → geofence center (default radius 50 m; configurable)
-- `Account Status` → `externalIds.encompassstatus`
+- `Report Address` (no company name) → `formattedAddress` (composed if needed)
+- `Latitude`,`Longitude` → geofence circle (default radius 50 m; configurable)
+- `Account Status` → used to compute a fingerprint (not stored)
 - `Location` → **Tag** (resolved via List Tags)
 - `Company` → **Tag** (resolved via List Tags)
 - `Customer Type` → ignored (optional: `externalIds.ENCOMPASS_TYPE`)
-- Scope markers: Tag **ManagedBy:EncompassSync** **and** `externalIds.encompassmanaged="1"`
+- Scope marker: Tag **ManagedBy:EncompassSync**
 - Fingerprint: `externalIds.fingerprint = sha256(normalize(name) + "|" + normalize(account_status) + "|" + normalize(formattedAddress))`
+
+### External ID requirements
+
+Samsara restricts each `externalIds` key and value to **32 characters** from the set
+`[A-Za-z0-9_.:-]`. Values outside this set should be sanitized or replaced before
+sending to the API.
+
+Canonical keys used by this tool:
+
+- `encompassid` – primary customer identifier
+- `fingerprint`
+
+Sanitization & backward compatibility:
+
+- The CLI normalizes legacy keys `EncompassId` and `ENCOMPASS_ID` to the canonical
+  `encompassid` and preserves other external IDs intact.
+- When indexing existing addresses, all three key variants are recognized so older
+  records remain discoverable.
+
+Usage example for a compliant external ID:
+
+```python
+import re
+
+raw_id = "ACME Store #1"
+safe_id = re.sub(r"[^A-Za-z0-9_.:-]", "_", raw_id)[:32]
+payload = {
+    "externalIds": {
+        "encompassid": safe_id,
+    }
+}
+```
 
 ### Safety rails
 
 - Only touch addresses with `externalIds.encompassid` or tag `ManagedBy:EncompassSync`.
+- Customers with `Account Status` `INACTIVE` are ignored unless explicitly deleted.
 - Two-step delete: tag `CandidateDelete`; hard-delete only with `--confirm-delete` **and**
   after retention window.
 - Never touch entries in `warehouses.csv` (denylist of Samsara IDs/names).

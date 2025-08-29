@@ -244,13 +244,9 @@ def clean_external_ids(ext: dict[str, Any]) -> dict[str, Any]:
     if eid is not None:
         out["EncompassId"] = eid
 
-    status = out.pop("encompass_status", None)
-    if status and "encompassstatus" not in out:
-        out["encompassstatus"] = status
-
-    managed = out.pop("encompass_managed", None)
-    if managed and "encompassmanaged" not in out:
-        out["encompassmanaged"] = managed
+    # Drop deprecated keys
+    out.pop("encompass_status", None)
+    out.pop("encompass_managed", None)
 
     fp = out.pop("encompass_fingerprint", None) or out.pop("fingerprint", None)
     if fp and "fingerprint" not in out:
@@ -300,8 +296,6 @@ def to_address_payload(
 
     ext_ids = {
         "EncompassId": sanitize_external_id_value(row.encompass_id),
-        "encompassstatus": sanitize_external_id_value(row.status),
-        "encompassmanaged": sanitize_external_id_value("1"),
         "fingerprint": sanitize_external_id_value(fp),
     }
     payload["externalIds"] = {k: v for k, v in ext_ids.items() if v is not None}
@@ -391,8 +385,6 @@ def diff_address(existing: dict, desired: dict) -> dict:
     ext_patch = {}
     for k in [
         "EncompassId",
-        "encompassstatus",
-        "encompassmanaged",
         "fingerprint",
     ]:
         if k in d_ext and e_ext.get(k) != d_ext.get(k):
