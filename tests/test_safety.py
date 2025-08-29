@@ -42,7 +42,7 @@ def address_samples():
         "warehouse_id": {"id": "1", "name": "Foo"},
         "warehouse_name": {"id": "999", "name": "Main"},
         "not_warehouse": {"id": "999", "name": "Unknown"},
-        "managed_external": {"externalIds": {"encompass_id": "abc"}},
+        "managed_external": {"externalIds": {"encompassid": "abc"}},
         "managed_external_alias": {"externalIds": {"EncompassId": "def"}},
         "managed_tag": {"tags": [{"id": "M1"}]},
         "unmanaged": {"tags": [{"id": "X"}]},

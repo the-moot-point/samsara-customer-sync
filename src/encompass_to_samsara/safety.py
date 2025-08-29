@@ -50,7 +50,13 @@ def is_warehouse(address: dict, warehouse_ids: set[str], warehouse_names_lc: set
 
 def is_managed(address: dict, managed_tag_id: str | None) -> bool:
     ext = address.get("externalIds") or {}
-    if ext.get("encompass_id") or ext.get("ENCOMPASS_ID") or ext.get("EncompassId"):
+    if (
+        ext.get("encompassid")
+        or ext.get("ENCOMPASSID")
+        or ext.get("EncompassId")
+        or ext.get("ENCOMPASS_ID")
+        or ext.get("encompass_id")
+    ):
         return True
     # Look for ManagedBy tag
     if managed_tag_id:

@@ -21,7 +21,13 @@ LOG = logging.getLogger(__name__)
 
 def _ext_encompass_id(ext: dict[str, Any]) -> str | None:
     """Return the Encompass external ID if present."""
-    return ext.get("encompass_id") or ext.get("ENCOMPASS_ID") or ext.get("EncompassId")
+    return (
+        ext.get("encompassid")
+        or ext.get("ENCOMPASSID")
+        or ext.get("EncompassId")
+        or ext.get("ENCOMPASS_ID")
+        or ext.get("encompass_id")
+    )
 
 
 def run_full(
@@ -96,7 +102,7 @@ def run_full(
         desired = to_address_payload(
             r, tags_index, radius_m=radius_m, managed_tag_name=MANAGED_BY_TAG
         )
-        desired_fp = desired["externalIds"]["ENCOMPASS_FINGERPRINT"]
+        desired_fp = desired["externalIds"]["fingerprint"]
         existing = by_eid.get(r.encompass_id)
 
         # If no direct match, try probable match among non-managed addresses only.
@@ -121,8 +127,8 @@ def run_full(
             # Build patch
             diff = diff_address(existing, desired)
             # If fingerprint unchanged and no missing scope markers, skip
-            ext = existing.get("externalIds") or {}
-            fp_old = ext.get("ENCOMPASS_FINGERPRINT")
+            ext = clean_external_ids(existing.get("externalIds") or {})
+            fp_old = ext.get("fingerprint")
             needs_scope = False
             # ensure scope tag is present
             e_tags = existing.get("tagIds") or existing.get("tags") or []
@@ -137,15 +143,15 @@ def run_full(
                         tag_ids.append(str(t))
             if managed_tag_id and managed_tag_id not in tag_ids:
                 needs_scope = True
-            if ext.get("ENCOMPASS_MANAGED") != "1":
+            if ext.get("encompassmanaged") != "1":
                 needs_scope = True
             if _ext_encompass_id(ext) != r.encompass_id:
                 needs_scope = True
             if needs_scope and "externalIds" not in diff:
                 # inject ext and tags
                 diff["externalIds"] = clean_external_ids(existing.get("externalIds") or {})
-                diff["externalIds"]["ENCOMPASS_MANAGED"] = "1"
-                diff["externalIds"]["encompass_id"] = r.encompass_id
+                diff["externalIds"]["encompassmanaged"] = "1"
+                diff["externalIds"]["encompassid"] = r.encompass_id
             if needs_scope:
                 # ensure tagIds
                 d_tags = desired.get("tagIds") or []

@@ -5,7 +5,7 @@ Keep Samsara customer addresses in lockstep with Encompass (SoT). Implement and 
 
 ## Constraints / Guardrails
 - Never modify or delete records unless `--apply` is set.
-- Only act on addresses with encompass_id or tag `ManagedBy:EncompassSync`.
+- Only act on addresses with encompassid or tag `ManagedBy:EncompassSync`.
 - Respect warehouses denylist (data/warehouses*.csv).
 - All timestamps/logs = UTC. Never print secrets.
 
@@ -24,5 +24,5 @@ Keep Samsara customer addresses in lockstep with Encompass (SoT). Implement and 
 
 ## Acceptance Checks (quick)
 - Re-run on unchanged input → 0 API writes.
-- Each Encompass Customer ID ↔ exactly one Samsara address with encompass_id + scope markers.
+- Each Encompass Customer ID ↔ exactly one Samsara address with encompassid + scope markers.
 - Company/Location tags match via tag IDs.

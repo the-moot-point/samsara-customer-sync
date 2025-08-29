@@ -22,7 +22,13 @@ def index_addresses_by_external_id(addresses: list[dict]) -> dict[str, dict]:
     idx: dict[str, dict] = {}
     for a in addresses:
         ext = a.get("externalIds") or {}
-        eid = ext.get("encompass_id") or ext.get("ENCOMPASS_ID") or ext.get("EncompassId")
+        eid = (
+            ext.get("encompassid")
+            or ext.get("ENCOMPASSID")
+            or ext.get("EncompassId")
+            or ext.get("ENCOMPASS_ID")
+            or ext.get("encompass_id")
+        )
         if eid:
             idx[str(eid)] = a
     return idx

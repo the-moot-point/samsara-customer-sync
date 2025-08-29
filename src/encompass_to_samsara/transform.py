@@ -158,11 +158,42 @@ def normalize_geofence(geo: dict | None) -> dict | None:
 
 
 def clean_external_ids(ext: dict[str, Any]) -> dict[str, Any]:
-    """Return a copy of ``ext`` with a single canonical Encompass ID key."""
+    """Return a copy of ``ext`` using canonical external ID keys.
+
+    Legacy keys with underscores or mixed case are mapped to the new
+    lowercase names to ensure backward compatibility.
+    """
     out = ext.copy()
-    eid = out.pop("EncompassId", None) or out.pop("ENCOMPASS_ID", None)
-    if eid and "encompass_id" not in out:
-        out["encompass_id"] = eid
+
+    eid = (
+        out.pop("EncompassId", None)
+        or out.pop("ENCOMPASS_ID", None)
+        or out.pop("encompass_id", None)
+        or out.pop("ENCOMPASSID", None)
+    )
+    if eid and "encompassid" not in out:
+        out["encompassid"] = eid
+
+    status = (
+        out.pop("ENCOMPASS_STATUS", None)
+        or out.pop("encompass_status", None)
+        or out.pop("encompassstatus", None)
+    )
+    if status and "encompassstatus" not in out:
+        out["encompassstatus"] = status
+
+    managed = (
+        out.pop("ENCOMPASS_MANAGED", None)
+        or out.pop("encompass_managed", None)
+        or out.pop("encompassmanaged", None)
+    )
+    if managed and "encompassmanaged" not in out:
+        out["encompassmanaged"] = managed
+
+    fp = out.pop("ENCOMPASS_FINGERPRINT", None) or out.pop("fingerprint", None)
+    if fp and "fingerprint" not in out:
+        out["fingerprint"] = fp
+
     return out
 
 def to_address_payload(
@@ -204,10 +235,10 @@ def to_address_payload(
         "name": row.name,
         "formattedAddress": formatted_addr,
         "externalIds": {
-            "encompass_id": row.encompass_id,
-            "ENCOMPASS_STATUS": row.status,
-            "ENCOMPASS_MANAGED": "1",
-            "ENCOMPASS_FINGERPRINT": fp,
+            "encompassid": row.encompass_id,
+            "encompassstatus": row.status,
+            "encompassmanaged": "1",
+            "fingerprint": fp,
         },
     }
 
@@ -295,10 +326,10 @@ def diff_address(existing: dict, desired: dict) -> dict:
     d_ext = clean_external_ids(desired.get("externalIds") or {})
     ext_patch = {}
     for k in [
-        "encompass_id",
-        "ENCOMPASS_STATUS",
-        "ENCOMPASS_MANAGED",
-        "ENCOMPASS_FINGERPRINT",
+        "encompassid",
+        "encompassstatus",
+        "encompassmanaged",
+        "fingerprint",
     ]:
         if k in d_ext and e_ext.get(k) != d_ext.get(k):
             ext_patch[k] = d_ext.get(k)

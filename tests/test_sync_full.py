@@ -174,7 +174,7 @@ def test_reuse_address_by_name(tmp_path, token_env, base_responses):
         if isinstance(req_body, bytes):
             req_body = req_body.decode()
         body = json.loads(req_body)
-        assert body["externalIds"]["encompass_id"] == "C1"
+        assert body["externalIds"]["encompassid"] == "C1"
 
     with open(out_dir / "actions.jsonl", encoding="utf-8") as f:
         acts = [json.loads(line) for line in f]

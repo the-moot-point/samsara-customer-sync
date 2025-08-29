@@ -30,9 +30,9 @@ def test_payload_includes_scope_and_tags():
     )
     tags = {"managedbyencompasssync":"1", "austin":"10", "jeco":"20", "candidatedelete":"2"}
     payload = to_address_payload(row, tags, radius_m=75)
-    assert payload["externalIds"]["encompass_id"] == "C123"
-    assert payload["externalIds"]["ENCOMPASS_MANAGED"] == "1"
-    assert "ENCOMPASS_FINGERPRINT" in payload["externalIds"]
+    assert payload["externalIds"]["encompassid"] == "C123"
+    assert payload["externalIds"]["encompassmanaged"] == "1"
+    assert "fingerprint" in payload["externalIds"]
     assert set(payload["geofence"].keys()) == {"circle"}
     assert payload["geofence"]["circle"]["radiusMeters"] == 75
     assert payload["geofence"]["circle"]["latitude"] == 30.1

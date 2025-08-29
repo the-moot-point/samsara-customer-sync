@@ -75,20 +75,20 @@ sync-e2s daily   --encompass-delta data/encompass_delta.csv   --warehouses data/
 
 ### Mapping
 
-- `Customer ID` → `externalIds.encompass_id` (required)
+- `Customer ID` → `externalIds.encompassid` (required)
 - `Customer Name` → `name`
 - `Report Address` → `formattedAddress` (composed if needed)
 - `Latitude`,`Longitude` → geofence center (default radius 50 m; configurable)
-- `Account Status` → `externalIds.ENCOMPASS_STATUS`
+- `Account Status` → `externalIds.encompassstatus`
 - `Location` → **Tag** (resolved via List Tags)
 - `Company` → **Tag** (resolved via List Tags)
 - `Customer Type` → ignored (optional: `externalIds.ENCOMPASS_TYPE`)
-- Scope markers: Tag **ManagedBy:EncompassSync** **and** `externalIds.ENCOMPASS_MANAGED="1"`
-- Fingerprint: `externalIds.ENCOMPASS_FINGERPRINT = sha256(normalize(name) + "|" + normalize(account_status) + "|" + normalize(formattedAddress))`
+- Scope markers: Tag **ManagedBy:EncompassSync** **and** `externalIds.encompassmanaged="1"`
+- Fingerprint: `externalIds.fingerprint = sha256(normalize(name) + "|" + normalize(account_status) + "|" + normalize(formattedAddress))`
 
 ### Safety rails
 
-- Only touch addresses with `externalIds.encompass_id` or tag `ManagedBy:EncompassSync`.
+- Only touch addresses with `externalIds.encompassid` or tag `ManagedBy:EncompassSync`.
 - Two-step delete: tag `CandidateDelete`; hard-delete only with `--confirm-delete` **and**
   after retention window.
 - Never touch entries in `warehouses.csv` (denylist of Samsara IDs/names).
@@ -100,13 +100,13 @@ sync-e2s daily   --encompass-delta data/encompass_delta.csv   --warehouses data/
 - `sync_report.csv` – summary counts and timing
 - `actions.jsonl` – one JSON object per action (create/update/delete/quarantine/skip/error)
 - `errors.csv` – structured error list
-- `duplicates.csv` – duplicate `Customer ID` in source, or duplicate `encompass_id` in Samsara
+- `duplicates.csv` – duplicate `Customer ID` in source, or duplicate `encompassid` in Samsara
 - `state.json` – persistent state (`id → fingerprint`, candidate-delete timestamps)
 
 ### Acceptance
 
 - Re-running `full`/`daily` with unchanged inputs → **zero** API writes (fingerprint idempotence)
-- All managed Samsara addresses carry `encompass_id` and scope markers
+- All managed Samsara addresses carry `encompassid` and scope markers
 - Company/Location tags resolved to correct IDs
 - Orphans quarantined or deleted only under explicit flags; warehouses never modified
 

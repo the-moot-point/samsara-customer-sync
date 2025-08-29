@@ -149,13 +149,13 @@ def run_daily(
         desired = to_address_payload(
             r, tags_index, radius_m=radius_m, managed_tag_name=MANAGED_BY_TAG
         )
-        desired_fp = desired["externalIds"]["ENCOMPASS_FINGERPRINT"]
+        desired_fp = desired["externalIds"]["fingerprint"]
         existing_fp = None
         if existing:
             eid = str(existing.get("id"))
-            existing_fp = (existing.get("externalIds") or {}).get("ENCOMPASS_FINGERPRINT") or state[
-                "fingerprints"
-            ].get(eid)
+            existing_fp = clean_external_ids(existing.get("externalIds") or {}).get(
+                "fingerprint"
+            ) or state["fingerprints"].get(eid)
 
         if existing:
             # Skip if fingerprint unchanged
