@@ -21,13 +21,7 @@ LOG = logging.getLogger(__name__)
 
 def _ext_encompass_id(ext: dict[str, Any]) -> str | None:
     """Return the Encompass external ID if present."""
-    return (
-        ext.get("encompassid")
-        or ext.get("ENCOMPASSID")
-        or ext.get("EncompassId")
-        or ext.get("ENCOMPASS_ID")
-        or ext.get("encompass_id")
-    )
+    return clean_external_ids(ext).get("EncompassId")
 
 
 def run_full(
@@ -151,7 +145,7 @@ def run_full(
                 # inject ext and tags
                 diff["externalIds"] = clean_external_ids(existing.get("externalIds") or {})
                 diff["externalIds"]["encompassmanaged"] = "1"
-                diff["externalIds"]["encompassid"] = r.encompass_id
+                diff["externalIds"]["EncompassId"] = r.encompass_id
             if needs_scope:
                 # ensure tagIds
                 d_tags = desired.get("tagIds") or []

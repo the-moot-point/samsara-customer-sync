@@ -4,6 +4,8 @@ import csv
 import logging
 from datetime import UTC, datetime, timedelta
 
+from .transform import clean_external_ids
+
 LOG = logging.getLogger(__name__)
 
 def load_warehouses(path: str) -> tuple[set[str], set[str]]:
@@ -49,14 +51,8 @@ def is_warehouse(address: dict, warehouse_ids: set[str], warehouse_names_lc: set
     return False
 
 def is_managed(address: dict, managed_tag_id: str | None) -> bool:
-    ext = address.get("externalIds") or {}
-    if (
-        ext.get("encompassid")
-        or ext.get("ENCOMPASSID")
-        or ext.get("EncompassId")
-        or ext.get("ENCOMPASS_ID")
-        or ext.get("encompass_id")
-    ):
+    ext = clean_external_ids(address.get("externalIds") or {})
+    if ext.get("EncompassId"):
         return True
     # Look for ManagedBy tag
     if managed_tag_id:
