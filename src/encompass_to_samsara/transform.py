@@ -11,8 +11,6 @@ LOG = logging.getLogger(__name__)
 
 RE_SPACES = re.compile(r"\s+")
 RE_PUNCT = re.compile(r"[^\w\s]")
-RE_EXT_ID_ALLOWED = re.compile(r"[^A-Za-z0-9:_-]")
-MAX_EXT_ID_LEN = 32
 
 REQUIRED_COLUMNS = [
     "Customer ID",
@@ -115,35 +113,6 @@ def compute_fingerprint(name: str, status: str, formatted_addr: str) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
-def sanitize_external_id_value(v: Any) -> str | None:
-    """Return ``v`` sanitized for use as an external ID value.
-
-    Removes disallowed characters, truncates values beyond ``MAX_EXT_ID_LEN``
-    characters, and returns ``None`` if nothing remains.  A warning is logged
-    whenever a value is modified or dropped.
-    """
-    if v is None:
-        return None
-    s = str(v).strip()
-    if not s:
-        return None
-    cleaned = RE_EXT_ID_ALLOWED.sub("", s)
-    if cleaned != s:
-        if cleaned:
-            LOG.warning("External ID value %r contained invalid characters; sanitized to %r", s, cleaned)
-        else:
-            LOG.warning("External ID value %r contained only invalid characters and was dropped", s)
-            return None
-    if len(cleaned) > MAX_EXT_ID_LEN:
-        LOG.warning(
-            "External ID value %r exceeded %d characters and was truncated",
-            s,
-            MAX_EXT_ID_LEN,
-        )
-        cleaned = cleaned[:MAX_EXT_ID_LEN]
-    return cleaned
-
-
 def normalize_geofence(geo: dict | None) -> dict | None:
     """Return geofence in canonical circle form.
 
@@ -192,14 +161,9 @@ def clean_external_ids(ext: dict[str, Any]) -> dict[str, Any]:
     """Return a copy of ``ext`` using canonical external ID keys.
 
     Legacy keys with underscores or mixed case are mapped to the new
-    lowercase names to ensure backward compatibility.  Values are sanitized
-    and any that become empty are dropped.
+    lowercase names to ensure backward compatibility.
     """
-    out: dict[str, Any] = {}
-    for k, v in ext.items():
-        sv = sanitize_external_id_value(v)
-        if sv is not None:
-            out[k] = sv
+    out = ext.copy()
 
     eid = (
         out.pop("EncompassId", None)
@@ -270,15 +234,13 @@ def to_address_payload(
     payload: dict[str, Any] = {
         "name": row.name,
         "formattedAddress": formatted_addr,
+        "externalIds": {
+            "encompassid": row.encompass_id,
+            "encompassstatus": row.status,
+            "encompassmanaged": "1",
+            "fingerprint": fp,
+        },
     }
-
-    ext_ids = {
-        "encompassid": sanitize_external_id_value(row.encompass_id),
-        "encompassstatus": sanitize_external_id_value(row.status),
-        "encompassmanaged": sanitize_external_id_value("1"),
-        "fingerprint": sanitize_external_id_value(fp),
-    }
-    payload["externalIds"] = {k: v for k, v in ext_ids.items() if v is not None}
 
     if geofence:
         payload["geofence"] = geofence
@@ -377,7 +339,7 @@ def diff_address(existing: dict, desired: dict) -> dict:
         for k, v in d_ext.items():
             if k not in ext_merged:
                 ext_merged[k] = v
-        patch["externalIds"] = clean_external_ids(ext_merged)
+        patch["externalIds"] = ext_merged
 
     # tags
     # existing may store 'tags' as array of ids or objects; normalize to ids
