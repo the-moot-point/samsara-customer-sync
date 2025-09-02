@@ -200,13 +200,14 @@ def normalize_geofence(geo: dict | None) -> dict | None:
             radius = int(radius) if radius is not None else radius
         except (TypeError, ValueError):
             pass
-        return {
-            "circle": {
-                "latitude": circle.get("latitude"),
-                "longitude": circle.get("longitude"),
-                "radiusMeters": radius,
-            }
-        }
+        circle_out = {"radiusMeters": radius}
+        lat = circle.get("latitude")
+        if lat is not None:
+            circle_out["latitude"] = lat
+        lon = circle.get("longitude")
+        if lon is not None:
+            circle_out["longitude"] = lon
+        return {"circle": circle_out}
     center = geo.get("center") if isinstance(geo, dict) else None
     radius = geo.get("radiusMeters") if isinstance(geo, dict) else None
     if isinstance(center, dict) and radius is not None:
@@ -214,13 +215,14 @@ def normalize_geofence(geo: dict | None) -> dict | None:
             radius = int(radius)
         except (TypeError, ValueError):
             pass
-        return {
-            "circle": {
-                "latitude": center.get("latitude"),
-                "longitude": center.get("longitude"),
-                "radiusMeters": radius,
-            }
-        }
+        circle_out = {"radiusMeters": radius}
+        lat = center.get("latitude")
+        if lat is not None:
+            circle_out["latitude"] = lat
+        lon = center.get("longitude")
+        if lon is not None:
+            circle_out["longitude"] = lon
+        return {"circle": circle_out}
     return geo
 
 
