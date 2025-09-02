@@ -55,6 +55,30 @@ sync-e2s daily   --encompass-delta data/encompass_delta.csv   --warehouses data/
   - Orphans are tagged **CandidateDelete** (quarantine).
   - Hard delete only when **both** `--confirm-delete` and retention window elapsed.
 
+### Rate limiting configuration
+
+Use `--api-rate-config <file>` to supply a JSON file that tunes client-side throttling.
+The file may specify a global `min_interval` (seconds between any two requests) and
+per-endpoint limits in requests per second keyed by "METHOD /path".
+
+Example `rate_limits.json`:
+
+```json
+{
+  "min_interval": 0.2,
+  "GET /addresses": 3,
+  "POST /addresses": 1
+}
+```
+
+Run the CLI with the config:
+
+```bash
+sync-e2s --api-rate-config rate_limits.json full --encompass-csv data/encompass_full.csv --warehouses data/warehouses.csv --out-dir output
+```
+
+Delays introduced by these limits are logged at DEBUG with the HTTP method and path.
+
 ### Inputs
 
 1. **Full Encompass CSV** with columns:
@@ -116,7 +140,7 @@ payload = {
   after retention window.
 - Never touch entries in `warehouses.csv` (denylist of Samsara IDs/names).
 - Retries/backoff on 429/5xx with exponential backoff + jitter; UTC timestamps; logs retries.
-- Configurable per-endpoint rate limiting; delays are logged at DEBUG with the HTTP method and path.
+- Configurable per-endpoint rate limiting via `--api-rate-config`; delays are logged at DEBUG with the HTTP method and path.
 
 ### Reports (written to `./output/`)
 
