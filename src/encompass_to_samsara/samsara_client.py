@@ -14,6 +14,7 @@ LOG = logging.getLogger(__name__)
 
 def _utc_ts() -> str:
     import datetime
+
     return datetime.datetime.utcnow().replace(tzinfo=datetime.UTC).isoformat()
 
 
@@ -29,13 +30,14 @@ class SamsaraClient:
     Thin API client with automatic retries/backoff and pagination helpers.
     Only allowed endpoints are used per requirements.
     """
+
     def __init__(
         self,
         api_token: str | None = None,
         base_url: str = "https://api.samsara.com",
         retry: RetryConfig | None = None,
         *,
-        rate_limits: dict[tuple[str, str], float] | None = None,
+        min_interval: float = 0.0,
         timeout: float = 30.0,
         rate_limits: dict[str, Any] | None = None,
     ) -> None:
@@ -53,33 +55,66 @@ class SamsaraClient:
             }
         )
         self.retry = retry or RetryConfig()
-
+        # optional global throttle between any two requests
         self.min_interval = min_interval
-        if rate_limits and "min_interval" in rate_limits:
+        rate_limits = rate_limits or {}
+        if "min_interval" in rate_limits:
             try:
-                self.min_interval = float(rate_limits["min_interval"])
+                self.min_interval = float(rate_limits.pop("min_interval"))
             except (TypeError, ValueError):
-                LOG.warning("Invalid min_interval in rate_limits config: %r", rate_limits["min_interval"])
+                LOG.warning(
+                    "Invalid min_interval in rate_limits config: %r", rate_limits["min_interval"]
+                )
+
+        # Mapping of (HTTP method, path) -> allowed requests per second
+        self.rate_limits: dict[tuple[str, str], float] = {}
+        for key, value in rate_limits.items():
+            if isinstance(key, tuple) and len(key) == 2:
+                method, path = key
+            elif isinstance(key, str):
+                try:
+                    method, path = key.split(" ", 1)
+                except ValueError:
+                    LOG.warning("Invalid rate limit key: %r", key)
+                    continue
+            else:
+                LOG.warning("Invalid rate limit key: %r", key)
+                continue
+            try:
+                self.rate_limits[(method.upper(), path)] = float(value)
+            except (TypeError, ValueError):
+                LOG.warning("Invalid rate limit value for %s %s: %r", method, path, value)
         self.timeout = timeout
-        self.rate_limits = rate_limits or {}
-        self._last_call = 0.0
-
-
+        # Track last-call timestamps for each (method, path) pair and globally
+        self._last_call: dict[tuple[str, str], float] = {}
+        self._last_request_ts = 0.0
 
     # --------------- Core HTTP ---------------
 
     def _sleep_for_rate(self, method: str, path: str) -> None:
+        now = time.time()
+        if self.min_interval > 0:
+            delta = now - self._last_request_ts
+            if delta < self.min_interval:
+                delay = self.min_interval - delta
+                LOG.debug("Delaying %s %s by %.2fs due to global rate limit", method, path, delay)
+                time.sleep(delay)
+                now += delay
+
         rate = self.rate_limits.get((method, path))
         if not rate or rate <= 0:
             return
         min_interval = 1.0 / rate
         last = self._last_call.get((method, path), 0.0)
-        now = time.time()
         delta = now - last
         if delta < min_interval:
-            time.sleep(min_interval - delta)
+            delay = min_interval - delta
+            LOG.debug("Delaying %s %s by %.2fs due to rate limit", method, path, delay)
+            time.sleep(delay)
 
-    def request(self, method: str, path: str, *, params: dict | None = None, json_body: Any | None = None) -> requests.Response:
+    def request(
+        self, method: str, path: str, *, params: dict | None = None, json_body: Any | None = None
+    ) -> requests.Response:
         url = f"{self.base_url}{path}"
         attempt = 0
         delay = self.retry.base_delay
@@ -87,20 +122,39 @@ class SamsaraClient:
             attempt += 1
             self._sleep_for_rate(method, path)
             try:
-                resp = self.session.request(method, url, params=params, json=json_body, timeout=self.timeout)
+                resp = self.session.request(
+                    method, url, params=params, json=json_body, timeout=self.timeout
+                )
             except requests.RequestException as e:
                 if attempt >= self.retry.max_attempts:
                     LOG.error("HTTP error after %s attempts: %s", attempt, repr(e))
                     raise
-                wait = min(self.retry.max_delay, delay * (2 ** (attempt - 1))) * (1 + random.random() * 0.25)
-                LOG.warning("HTTP exception on %s %s (attempt %s), retrying in %.2fs", method, path, attempt, wait)
+                wait = min(self.retry.max_delay, delay * (2 ** (attempt - 1))) * (
+                    1 + random.random() * 0.25
+                )
+                LOG.warning(
+                    "HTTP exception on %s %s (attempt %s), retrying in %.2fs",
+                    method,
+                    path,
+                    attempt,
+                    wait,
+                )
                 time.sleep(wait)
                 continue
 
-            self._last_call[(method, path)] = time.time()
+            now = time.time()
+            self._last_request_ts = now
+            self._last_call[(method, path)] = now
             if resp.status_code in (429, 500, 502, 503, 504):
                 if attempt >= self.retry.max_attempts:
-                    LOG.error("HTTP %s after %s attempts: %s %s -> %s", resp.status_code, attempt, method, path, resp.text[:400])
+                    LOG.error(
+                        "HTTP %s after %s attempts: %s %s -> %s",
+                        resp.status_code,
+                        attempt,
+                        method,
+                        path,
+                        resp.text[:400],
+                    )
                     resp.raise_for_status()
                 retry_after = resp.headers.get("Retry-After")
                 if retry_after is not None:
@@ -110,15 +164,23 @@ class SamsaraClient:
                         wait = min(self.retry.max_delay, delay * (2 ** (attempt - 1)))
                 else:
                     wait = min(self.retry.max_delay, delay * (2 ** (attempt - 1)))
-                wait *= (1 + random.random() * 0.25)  # jitter
-                LOG.warning("Rate/server error %s on %s %s (attempt %s), retrying in %.2fs",
-                            resp.status_code, method, path, attempt, wait)
+                wait *= 1 + random.random() * 0.25  # jitter
+                LOG.warning(
+                    "Rate/server error %s on %s %s (attempt %s), retrying in %.2fs",
+                    resp.status_code,
+                    method,
+                    path,
+                    attempt,
+                    wait,
+                )
                 time.sleep(wait)
                 continue
 
             # success or permanent error
             if resp.status_code >= 400:
-                LOG.error("HTTP error %s on %s %s: %s", resp.status_code, method, path, resp.text[:400])
+                LOG.error(
+                    "HTTP error %s on %s %s: %s", resp.status_code, method, path, resp.text[:400]
+                )
             return resp
 
     # --------------- Endpoints ---------------
@@ -171,9 +233,7 @@ class SamsaraClient:
             message = data.get("message")
             request_id = data.get("requestId")
             details = ", ".join(
-                f"{k}: {v}"
-                for k, v in (("message", message), ("requestId", request_id))
-                if v
+                f"{k}: {v}" for k, v in (("message", message), ("requestId", request_id)) if v
             )
             LOG.error("Failed to create address payload=%s response=%s", payload, data)
             msg = str(e)
@@ -207,7 +267,9 @@ class SamsaraClient:
             if not isinstance(items, list):
                 items = []
             out.extend(items)
-            page_token = data.get("nextPageToken") or data.get("pagination", {}).get("nextPageToken")
+            page_token = data.get("nextPageToken") or data.get("pagination", {}).get(
+                "nextPageToken"
+            )
             if not page_token:
                 break
         return out

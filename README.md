@@ -116,6 +116,7 @@ payload = {
   after retention window.
 - Never touch entries in `warehouses.csv` (denylist of Samsara IDs/names).
 - Retries/backoff on 429/5xx with exponential backoff + jitter; UTC timestamps; logs retries.
+- Configurable per-endpoint rate limiting; delays are logged at DEBUG with the HTTP method and path.
 
 ### Reports (written to `./output/`)
 
