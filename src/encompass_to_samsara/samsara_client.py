@@ -34,7 +34,8 @@ class SamsaraClient:
         api_token: str | None = None,
         base_url: str = "https://api.samsara.com",
         retry: RetryConfig | None = None,
-        min_interval: float = 0.0,  # optional client-side throttle between calls
+        *,
+        rate_limits: dict[tuple[str, str], float] | None = None,
         timeout: float = 30.0,
     ) -> None:
         token = api_token or os.getenv("SAMSARA_BEARER_TOKEN")
@@ -51,19 +52,24 @@ class SamsaraClient:
             }
         )
         self.retry = retry or RetryConfig()
-        self.min_interval = min_interval
+        # Mapping of (HTTP method, path) -> allowed requests per second, e.g. {("GET", "/addresses"): 5}
+        self.rate_limits = rate_limits or {}
         self.timeout = timeout
-        self._last_call = 0.0
+        # Track last-call timestamps for each (method, path) pair
+        self._last_call: dict[tuple[str, str], float] = {}
 
     # --------------- Core HTTP ---------------
 
-    def _sleep_for_rate(self) -> None:
-        if self.min_interval <= 0:
+    def _sleep_for_rate(self, method: str, path: str) -> None:
+        rate = self.rate_limits.get((method, path))
+        if not rate or rate <= 0:
             return
+        min_interval = 1.0 / rate
+        last = self._last_call.get((method, path), 0.0)
         now = time.time()
-        delta = now - self._last_call
-        if delta < self.min_interval:
-            time.sleep(self.min_interval - delta)
+        delta = now - last
+        if delta < min_interval:
+            time.sleep(min_interval - delta)
 
     def request(self, method: str, path: str, *, params: dict | None = None, json_body: Any | None = None) -> requests.Response:
         url = f"{self.base_url}{path}"
@@ -71,7 +77,7 @@ class SamsaraClient:
         delay = self.retry.base_delay
         while True:
             attempt += 1
-            self._sleep_for_rate()
+            self._sleep_for_rate(method, path)
             try:
                 resp = self.session.request(method, url, params=params, json=json_body, timeout=self.timeout)
             except requests.RequestException as e:
@@ -83,7 +89,7 @@ class SamsaraClient:
                 time.sleep(wait)
                 continue
 
-            self._last_call = time.time()
+            self._last_call[(method, path)] = time.time()
             if resp.status_code in (429, 500, 502, 503, 504):
                 if attempt >= self.retry.max_attempts:
                     LOG.error("HTTP %s after %s attempts: %s %s -> %s", resp.status_code, attempt, method, path, resp.text[:400])
