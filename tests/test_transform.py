@@ -9,6 +9,7 @@ from encompass_to_samsara.transform import (
     sanitize_external_id_value,
     to_address_payload,
     validate_lat_lon,
+    normalize_geofence,
 )
 from encompass_to_samsara.tags import build_tag_index
 
@@ -43,7 +44,7 @@ def test_payload_includes_scope_and_tags():
     assert set(payload.get("tagIds", [])) >= {"1","10","20"}
 
 
-def test_invalid_coordinates_skip_geofence():
+def test_missing_coordinates_defaults_geofence():
     row = SourceRow(
         encompass_id="C999",
         name="Invalid",
@@ -56,9 +57,10 @@ def test_invalid_coordinates_skip_geofence():
         ctype="Retail",
     )
     payload = to_address_payload(row, {})
-    circle = payload["geofence"]["circle"]
-    assert circle["radiusMeters"] == 50
-    assert "latitude" not in circle and "longitude" not in circle
+    assert payload["geofence"] == {"circle": {"radiusMeters": 50}}
+    assert normalize_geofence({"circle": {"radiusMeters": 50}}) == {
+        "circle": {"radiusMeters": 50}
+    }
 
 def test_validate_lat_lon():
     assert validate_lat_lon(0,0)
