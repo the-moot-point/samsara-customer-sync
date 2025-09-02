@@ -36,6 +36,7 @@ class SamsaraClient:
         retry: RetryConfig | None = None,
         min_interval: float = 0.0,  # optional client-side throttle between calls
         timeout: float = 30.0,
+        rate_limits: dict[str, Any] | None = None,
     ) -> None:
         token = api_token or os.getenv("SAMSARA_BEARER_TOKEN")
         if not token:
@@ -52,7 +53,13 @@ class SamsaraClient:
         )
         self.retry = retry or RetryConfig()
         self.min_interval = min_interval
+        if rate_limits and "min_interval" in rate_limits:
+            try:
+                self.min_interval = float(rate_limits["min_interval"])
+            except (TypeError, ValueError):
+                LOG.warning("Invalid min_interval in rate_limits config: %r", rate_limits["min_interval"])
         self.timeout = timeout
+        self.rate_limits = rate_limits or {}
         self._last_call = 0.0
 
     # --------------- Core HTTP ---------------
