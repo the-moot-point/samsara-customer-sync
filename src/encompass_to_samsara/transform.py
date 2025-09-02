@@ -277,17 +277,14 @@ def to_address_payload(
             if tid and tid not in tag_ids:
                 tag_ids.append(tid)
 
-    geofence = None
+    circle = {"radiusMeters": radius_m}
     if validate_lat_lon(row.lat, row.lon):
-        geofence = normalize_geofence(
-            {
-                "circle": {
-                    "latitude": row.lat,
-                    "longitude": row.lon,
-                    "radiusMeters": radius_m,
-                }
-            }
-        )
+        circle["latitude"] = row.lat
+        circle["longitude"] = row.lon
+    geofence = normalize_geofence({"circle": circle})
+    circle_norm = geofence.get("circle") if isinstance(geofence, dict) else {}
+    if isinstance(circle_norm, dict):
+        geofence["circle"] = {k: v for k, v in circle_norm.items() if v is not None}
 
     payload: dict[str, Any] = {
         "name": row.name,
@@ -300,8 +297,7 @@ def to_address_payload(
     }
     payload["externalIds"] = {k: v for k, v in ext_ids.items() if v is not None}
 
-    if geofence:
-        payload["geofence"] = geofence
+    payload["geofence"] = geofence
     if tag_ids:
         payload["tagIds"] = tag_ids
     return payload
