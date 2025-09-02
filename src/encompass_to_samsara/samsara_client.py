@@ -37,6 +37,7 @@ class SamsaraClient:
         *,
         rate_limits: dict[tuple[str, str], float] | None = None,
         timeout: float = 30.0,
+        rate_limits: dict[str, Any] | None = None,
     ) -> None:
         token = api_token or os.getenv("SAMSARA_BEARER_TOKEN")
         if not token:
@@ -52,11 +53,18 @@ class SamsaraClient:
             }
         )
         self.retry = retry or RetryConfig()
-        # Mapping of (HTTP method, path) -> allowed requests per second, e.g. {("GET", "/addresses"): 5}
-        self.rate_limits = rate_limits or {}
+
+        self.min_interval = min_interval
+        if rate_limits and "min_interval" in rate_limits:
+            try:
+                self.min_interval = float(rate_limits["min_interval"])
+            except (TypeError, ValueError):
+                LOG.warning("Invalid min_interval in rate_limits config: %r", rate_limits["min_interval"])
         self.timeout = timeout
-        # Track last-call timestamps for each (method, path) pair
-        self._last_call: dict[tuple[str, str], float] = {}
+        self.rate_limits = rate_limits or {}
+        self._last_call = 0.0
+
+
 
     # --------------- Core HTTP ---------------
 

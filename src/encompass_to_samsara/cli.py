@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import json
 
 import click
 from dotenv import load_dotenv
@@ -23,9 +24,24 @@ logging.basicConfig(
         "Customers with Account Status INACTIVE are skipped unless explicitly deleted."
     )
 )
-def cli() -> None:
+@click.option(
+    "--api-rate-config",
+    type=click.Path(exists=True, dir_okay=False),
+    help=(
+        "Path to JSON file with API rate limit settings. "
+        "Defaults to built-in client behavior."
+    ),
+    default=None,
+)
+@click.pass_context
+def cli(ctx: click.Context, api_rate_config: str | None) -> None:
     load_dotenv()  # optional .env
-    pass
+    ctx.ensure_object(dict)
+    if api_rate_config:
+        with open(api_rate_config, encoding="utf-8") as f:
+            ctx.obj["rate_limits"] = json.load(f)
+    else:
+        ctx.obj["rate_limits"] = None
 
 
 @cli.command("full", help="Run a full refresh from a complete Encompass CSV.")
@@ -41,7 +57,9 @@ def cli() -> None:
 @click.option("--retention-days", default=30, show_default=True, type=int)
 @click.option("--confirm-delete", is_flag=True, help="Allow hard deletes after retention window.")
 @click.option("--apply", is_flag=True, help="Apply changes. Without this flag, dry-run only.")
+@click.pass_context
 def full_cmd(
+    ctx: click.Context,
     encompass_csv: str,
     warehouses: str,
     out_dir: str,
@@ -50,7 +68,7 @@ def full_cmd(
     confirm_delete: bool,
     apply: bool,
 ) -> None:
-    client = SamsaraClient()
+    client = SamsaraClient(rate_limits=ctx.obj.get("rate_limits"))
     # Dispatch directly to run_full. All action handling occurs inside run_full
     # which instantiates its own actions list, ensuring this CLI command
     # remains stateless and isolated from other subcommands.
@@ -79,7 +97,9 @@ def full_cmd(
 @click.option("--retention-days", default=30, show_default=True, type=int)
 @click.option("--confirm-delete", is_flag=True, help="Allow hard deletes after retention window.")
 @click.option("--apply", is_flag=True, help="Apply changes. Without this flag, dry-run only.")
+@click.pass_context
 def daily_cmd(
+    ctx: click.Context,
     encompass_delta: str,
     warehouses: str,
     out_dir: str,
@@ -88,7 +108,7 @@ def daily_cmd(
     confirm_delete: bool,
     apply: bool,
 ) -> None:
-    client = SamsaraClient()
+    client = SamsaraClient(rate_limits=ctx.obj.get("rate_limits"))
     run_daily(
         client,
         encompass_delta=encompass_delta,
