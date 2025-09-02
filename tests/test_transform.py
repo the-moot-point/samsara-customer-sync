@@ -56,7 +56,9 @@ def test_invalid_coordinates_skip_geofence():
         ctype="Retail",
     )
     payload = to_address_payload(row, {})
-    assert "geofence" not in payload
+    circle = payload["geofence"]["circle"]
+    assert circle["radiusMeters"] == 50
+    assert "latitude" not in circle and "longitude" not in circle
 
 def test_validate_lat_lon():
     assert validate_lat_lon(0,0)
