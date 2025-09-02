@@ -6,6 +6,8 @@ from unittest.mock import Mock
 import pytest
 import requests
 
+from encompass_to_samsara.samsara_client import SamsaraClient
+
 
 def make_response(status_code: int, json_body=None, headers=None):
     resp = requests.Response()
@@ -97,3 +99,41 @@ def test_create_address_with_sanitized_external_ids(monkeypatch, client):
     allowed = re.compile(r"^[A-Za-z0-9_.:-]+$")
     assert all(allowed.match(k) for k in sent["externalIds"])
     assert all(allowed.match(v) for v in sent["externalIds"].values())
+
+
+@pytest.mark.parametrize(
+    "method_name,args,min_interval",
+    [
+        ("list_addresses", (), 0.2),
+        ("get_address", ("1",), 0.2),
+        ("create_address", ({"name": "x"},), 1.0),
+        ("patch_address", ("1", {"name": "y"}), 1.0),
+        ("delete_address", ("1",), 1.0),
+        ("list_tags", (), 0.2),
+    ],
+)
+def test_min_interval_throttle(monkeypatch, method_name, args, min_interval):
+    current = [1000.0]
+    sleep_calls: list[float] = []
+
+    def fake_time() -> float:
+        return current[0]
+
+    def fake_sleep(duration: float) -> None:
+        sleep_calls.append(duration)
+        current[0] += duration
+
+    monkeypatch.setattr("encompass_to_samsara.samsara_client.time.time", fake_time)
+    monkeypatch.setattr("encompass_to_samsara.samsara_client.time.sleep", fake_sleep)
+
+    mock_req = Mock(side_effect=lambda *a, **k: make_response(200, {}))
+    monkeypatch.setattr(requests.Session, "request", mock_req)
+
+    client = SamsaraClient(api_token="test-token", min_interval=min_interval)
+    method = getattr(client, method_name)
+
+    method(*args)
+    method(*args)
+
+    assert len(sleep_calls) == 1
+    assert sleep_calls[0] == pytest.approx(min_interval)
