@@ -116,9 +116,9 @@ def test_sanitize_external_id_value_strips(caplog):
     assert any("invalid" in r.message for r in caplog.records)
 
 
-def test_sanitize_external_id_value_allows_underscore():
+def test_sanitize_external_id_value_strips_non_alnum():
     val = sanitize_external_id_value("foo_bar-123")
-    assert val == "foo_bar-123"
+    assert val == "foobar123"
 
 
 def test_clean_external_ids_sanitizes_and_drops(caplog):
