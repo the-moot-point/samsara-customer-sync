@@ -29,6 +29,10 @@ class ExternalIdConflictError(requests.HTTPError):
     """Raised when a duplicate external ID is detected on update."""
 
 
+class InvalidExternalIdKeyError(requests.HTTPError):
+    """Raised when an external ID key violates Samsara key rules."""
+
+
 class SamsaraClient:
     """
     Thin API client with automatic retries/backoff and pagination helpers.
@@ -262,6 +266,11 @@ class SamsaraClient:
                 and "Duplicate external id value already exists" in message
             ):
                 raise ExternalIdConflictError(message, response=r) from e
+            if (
+                r.status_code == 400
+                and "Name must contain only letters or numbers" in message
+            ):
+                raise InvalidExternalIdKeyError(message, response=r) from e
             details = ", ".join(
                 f"{k}: {v}" for k, v in (("message", message), ("requestId", request_id)) if v
             )
