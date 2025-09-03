@@ -39,6 +39,18 @@ python -m encompass_to_samsara.scripts.export_addresses
 
 The script writes all existing Samsara addresses to `addresses.json`.
 
+### Delete Samsara addresses
+
+Provide a CSV or Excel file with an `ID` column listing the address IDs to remove.
+
+```bash
+export SAMSARA_BEARER_TOKEN=your_token
+python -m encompass_to_samsara.scripts.delete_addresses path/to/ids.csv
+```
+
+The script iterates through the IDs and calls the Samsara Delete Address endpoint for
+each.
+
 ### CLI
 
 ```
