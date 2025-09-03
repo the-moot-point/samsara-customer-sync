@@ -8,6 +8,7 @@ import requests
 
 from encompass_to_samsara.samsara_client import (
     ExternalIdConflictError,
+    InvalidExternalIdKeyError,
     SamsaraClient,
 )
 
@@ -143,7 +144,7 @@ def test_min_interval_throttle(monkeypatch, method_name, args, min_interval):
     assert sleep_calls[0] == pytest.approx(min_interval)
 
 
-def test_patch_address_duplicate_external_id_raises_typed(monkeypatch, client):
+def test_patch_duplicate_external_id(monkeypatch, client):
     resp = make_response(
         400,
         {"message": "Duplicate external id value already exists: XYZ", "requestId": "req-1"},
@@ -152,4 +153,16 @@ def test_patch_address_duplicate_external_id_raises_typed(monkeypatch, client):
     monkeypatch.setattr(client, "request", mock_req)
 
     with pytest.raises(ExternalIdConflictError):
+        client.patch_address("1", {"name": "x"})
+
+
+def test_patch_invalid_key_error(monkeypatch, client):
+    resp = make_response(
+        400,
+        {"message": "Name must contain only letters or numbers", "requestId": "req-2"},
+    )
+    mock_req = Mock(return_value=resp)
+    monkeypatch.setattr(client, "request", mock_req)
+
+    with pytest.raises(InvalidExternalIdKeyError):
         client.patch_address("1", {"name": "x"})

@@ -116,9 +116,9 @@ def test_sanitize_external_id_value_strips(caplog):
     assert any("invalid" in r.message for r in caplog.records)
 
 
-def test_sanitize_external_id_value_strips_non_alnum():
-    val = sanitize_external_id_value("foo_bar-123")
-    assert val == "foobar123"
+def test_sanitize_external_id_value_allows_special_chars():
+    val = sanitize_external_id_value("foo_bar-123$")
+    assert val == "foo_bar-123"
 
 
 def test_clean_external_ids_sanitizes_and_drops(caplog):
@@ -183,7 +183,7 @@ def test_diff_address_sanitizes_external_ids():
     desired = {"externalIds": {"encompassid": "id@" + "1" * 40}}
     patch = diff_address(existing, desired)
     val = patch["externalIds"]["EncompassId"]
-    assert val == "id" + "1" * 40
+    assert val == "id@" + "1" * 40
 
 
 def test_diff_address_drops_or_renames_invalid_external_ids():
@@ -194,4 +194,5 @@ def test_diff_address_drops_or_renames_invalid_external_ids():
     allowed = re.compile(r"^[A-Za-z0-9_.:-]+$")
     assert set(ext.keys()) == {"EncompassId", "badkey"}
     assert all(allowed.match(k) for k in ext)
-    assert all(allowed.match(v) for v in ext.values())
+    allowed_val = re.compile(r"^[A-Za-z0-9@._%+-]+$")
+    assert all(allowed_val.match(v) for v in ext.values())

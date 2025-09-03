@@ -4,6 +4,7 @@ import csv
 import hashlib
 import logging
 import re
+from datetime import datetime
 from dataclasses import dataclass
 from typing import Any
 
@@ -12,8 +13,38 @@ LOG = logging.getLogger(__name__)
 RE_SPACES = re.compile(r"\s+")
 RE_PUNCT = re.compile(r"[^\w\s]")
 RE_EXT_ID_KEY_ALLOWED = re.compile(r"[^A-Za-z0-9:_-]")
-RE_EXT_ID_VALUE_ALLOWED = re.compile(r"[^A-Za-z0-9]")
 MAX_EXT_ID_LEN = 32
+
+DELETE_MARKER_KEY = "DeleteCandidateAt"  # alphanumeric only, <=32 chars
+
+_KEY_OK = re.compile(r"^[A-Za-z0-9]{1,32}$")
+_VALUE_ALLOWED = set("@._%+-")
+
+
+def validate_external_id_key(key: str) -> str:
+    if not _KEY_OK.fullmatch(key):
+        raise ValueError(
+            f"Invalid external ID key '{key}': must be alphanumeric and <=32 chars"
+        )
+    return key
+
+
+def sanitize_external_id_value(value: Any) -> str | None:
+    value = str(value) if value is not None else ""
+    cleaned = "".join(ch for ch in value if ch.isalnum() or ch in _VALUE_ALLOWED)
+    if cleaned != value:
+        LOG.warning(
+            "External ID value %r contained invalid characters; sanitized to %r",
+            value,
+            cleaned,
+        )
+    return cleaned or None
+
+
+def build_delete_marker_value(address_id: str, now: datetime | None = None) -> str:
+    ts = (now or datetime.utcnow()).strftime("%Y%m%dT%H%M%S")
+    # Keep a hyphen: '-' is allowed in values
+    return sanitize_external_id_value(f"{ts}-{address_id}") or ""
 
 REQUIRED_COLUMNS = [
     "Customer ID",
@@ -114,37 +145,6 @@ def validate_lat_lon(lat: float | None, lon: float | None) -> bool:
 def compute_fingerprint(name: str, status: str, formatted_addr: str) -> str:
     payload = f"{normalize(name)}|{normalize(status)}|{normalize(formatted_addr)}".encode()
     return hashlib.sha256(payload).hexdigest()
-
-
-def sanitize_external_id_value(v: Any) -> str | None:
-    """Return ``v`` sanitized for use as an external ID value.
-
-    Removes disallowed characters and returns ``None`` if nothing remains.  A
-    warning is logged whenever a value is modified or dropped.  Unlike keys,
-    values are not length limited.
-    """
-    if v is None:
-        return None
-    s = str(v).strip()
-    if not s:
-        return None
-    cleaned = RE_EXT_ID_VALUE_ALLOWED.sub("", s)
-    if cleaned != s:
-        if cleaned:
-            LOG.warning(
-                "External ID value %r contained invalid characters; sanitized to %r",
-                s,
-                cleaned,
-            )
-        else:
-            LOG.warning(
-                "External ID value %r contained only invalid characters and was dropped",
-                s,
-            )
-            return None
-    return cleaned
-
-
 def sanitize_external_id_key(k: Any) -> str | None:
     """Return ``k`` sanitized for use as an external ID key.
 

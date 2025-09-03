@@ -11,10 +11,11 @@ from .samsara_client import ExternalIdConflictError, SamsaraClient
 from .state import load_state, save_state
 from .tags import CANDIDATE_DELETE_TAG, MANAGED_BY_TAG, build_tag_index, resolve_tag_id
 from .transform import (
+    DELETE_MARKER_KEY,
+    build_delete_marker_value,
     clean_external_ids,
     diff_address,
     read_encompass_csv,
-    sanitize_external_id_value,
     to_address_payload,
 )
 
@@ -66,7 +67,6 @@ def run_daily(
     # Warehouses
     wh_ids, wh_names = load_warehouses(warehouses_path)
 
-    error_count = 0
     for r in iterable:
         action = (r.action or "upsert").lower()
         if r.status.strip().upper() == "INACTIVE" and action != "delete":
@@ -118,20 +118,69 @@ def run_daily(
                             )
                         )
                 else:
-                    ext = clean_external_ids(existing.get("externalIds") or {})
-                    if "encompass_delete_candidate" not in ext:
-                        marker_raw = f"{now_utc_iso()[:19].replace(':', '').replace('-', '')}-{aid}"
-                        marker = sanitize_external_id_value(marker_raw)
-                        patch = {"externalIds": ext | {"ENCOMPASS_DELETE_CANDIDATE": marker}}
+                    if confirm_delete and retention_days <= 0:
                         if apply:
-                            client.patch_address(aid, patch)
+                            try:
+                                client.delete_address(aid)
+                            except requests.HTTPError:
+                                actions.append(
+                                    Action(
+                                        at=now_utc_iso(),
+                                        kind="error",
+                                        address_id=aid,
+                                        encompass_id=r.encompass_id,
+                                        reason="delete_http_error",
+                                    )
+                                )
+                                continue
                         actions.append(
                             Action(
                                 at=now_utc_iso(),
-                                kind="quarantine",
+                                kind="delete",
                                 address_id=aid,
                                 encompass_id=r.encompass_id,
-                                reason="delta_delete_candidate_extid",
+                                reason="retention_0",
+                            )
+                        )
+                        continue
+                    else:
+                        patch = {
+                            "externalIds": {DELETE_MARKER_KEY: build_delete_marker_value(aid)}
+                        }
+                        if apply:
+                            try:
+                                client.patch_address(aid, patch)
+                            except ExternalIdConflictError:
+                                actions.append(
+                                    Action(
+                                        at=now_utc_iso(),
+                                        kind="error",
+                                        address_id=aid,
+                                        encompass_id=r.encompass_id,
+                                        reason="mark_delete_duplicate_external_id",
+                                        payload=patch,
+                                    )
+                                )
+                                continue
+                            except requests.HTTPError:
+                                actions.append(
+                                    Action(
+                                        at=now_utc_iso(),
+                                        kind="error",
+                                        address_id=aid,
+                                        encompass_id=r.encompass_id,
+                                        reason="mark_delete_http_error",
+                                        payload=patch,
+                                    )
+                                )
+                                continue
+                        actions.append(
+                            Action(
+                                at=now_utc_iso(),
+                                kind="mark_delete",
+                                address_id=aid,
+                                encompass_id=r.encompass_id,
+                                reason="mark_for_retention",
                                 payload=patch,
                             )
                         )
@@ -213,7 +262,6 @@ def run_daily(
                                 "count": 2,
                             }
                         )
-                        error_count += 1
                     except requests.HTTPError as e:
                         actions.append(
                             Action(
@@ -227,7 +275,6 @@ def run_daily(
                         errors_rows.append(
                             {"error": f"patch_failed: {e}", "row_name": r.name}
                         )
-                        error_count += 1
                     else:
                         actions.append(
                             Action(
@@ -281,7 +328,6 @@ def run_daily(
                     errors_rows.append(
                         {"error": f"create_failed: {e}", "row_name": r.name}
                     )
-                    error_count += 1
                     aid = None
                 else:
                     aid = str(created.get("id") or "")
@@ -313,9 +359,13 @@ def run_daily(
                     state["fingerprints"][aid] = desired_fp
 
         if use_progress:
+            errs = sum(1 for a in actions if a.kind == "error")
+            marks = sum(1 for a in actions if a.kind == "mark_delete")
+            dels = sum(1 for a in actions if a.kind == "delete")
             iterable.set_postfix_str(
                 f"creates={sum(1 for a in actions if a.kind=='create')} "
-                f"updates={sum(1 for a in actions if a.kind=='update')} errs={error_count}"
+                f"updates={sum(1 for a in actions if a.kind=='update')} "
+                f"marked={marks} deleted={dels} errs={errs}"
             )
 
     # Write outputs
