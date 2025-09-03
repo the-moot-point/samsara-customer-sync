@@ -238,7 +238,7 @@ def test_delete_marker_unique_and_by_address(tmp_path, token_env, monkeypatch):
                 body = body.decode()
             payload = json.loads(body)
             val = payload["externalIds"]["ENCOMPASS_DELETE_CANDIDATE"]
-            assert val == f"20240829T123456-{aid}"
+            assert val == f"20240829T123456{aid}"
             markers.append(val)
         assert markers[0] != markers[1]
 
@@ -274,7 +274,7 @@ def test_no_patch_when_marker_exists(tmp_path, token_env, monkeypatch):
             "formattedAddress": "123 A St",
             "externalIds": {
                 "EncompassId": "C1",
-                "ENCOMPASS_DELETE_CANDIDATE": "20240829T123456-300",
+                "ENCOMPASS_DELETE_CANDIDATE": "20240829T123456300",
             },
             "tagIds": ["1"],
         }

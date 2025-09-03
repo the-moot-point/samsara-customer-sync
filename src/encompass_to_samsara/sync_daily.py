@@ -14,6 +14,7 @@ from .transform import (
     clean_external_ids,
     diff_address,
     read_encompass_csv,
+    sanitize_external_id_value,
     to_address_payload,
 )
 
@@ -119,7 +120,8 @@ def run_daily(
                 else:
                     ext = clean_external_ids(existing.get("externalIds") or {})
                     if "encompass_delete_candidate" not in ext:
-                        marker = f"{now_utc_iso()[:19].replace(':', '').replace('-', '')}-{aid}"
+                        marker_raw = f"{now_utc_iso()[:19].replace(':', '').replace('-', '')}-{aid}"
+                        marker = sanitize_external_id_value(marker_raw)
                         patch = {"externalIds": ext | {"ENCOMPASS_DELETE_CANDIDATE": marker}}
                         if apply:
                             client.patch_address(aid, patch)

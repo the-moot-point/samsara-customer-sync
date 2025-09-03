@@ -11,7 +11,8 @@ LOG = logging.getLogger(__name__)
 
 RE_SPACES = re.compile(r"\s+")
 RE_PUNCT = re.compile(r"[^\w\s]")
-RE_EXT_ID_ALLOWED = re.compile(r"[^A-Za-z0-9:_-]")
+RE_EXT_ID_KEY_ALLOWED = re.compile(r"[^A-Za-z0-9:_-]")
+RE_EXT_ID_VALUE_ALLOWED = re.compile(r"[^A-Za-z0-9]")
 MAX_EXT_ID_LEN = 32
 
 REQUIRED_COLUMNS = [
@@ -127,7 +128,7 @@ def sanitize_external_id_value(v: Any) -> str | None:
     s = str(v).strip()
     if not s:
         return None
-    cleaned = RE_EXT_ID_ALLOWED.sub("", s)
+    cleaned = RE_EXT_ID_VALUE_ALLOWED.sub("", s)
     if cleaned != s:
         if cleaned:
             LOG.warning(
@@ -156,7 +157,7 @@ def sanitize_external_id_key(k: Any) -> str | None:
     s = str(k).strip()
     if not s:
         return None
-    cleaned = RE_EXT_ID_ALLOWED.sub("", s)
+    cleaned = RE_EXT_ID_KEY_ALLOWED.sub("", s)
     if cleaned != s:
         if cleaned:
             LOG.warning(

@@ -187,4 +187,4 @@ Codex automatically merges agent guidance from the files in `codex/` and your
 > **Note**: The tag **CandidateDelete** is used to quarantine orphans.
 > Ensure a Tag named exactly `CandidateDelete` exists in Samsara (the CLI cannot create tags
 > – only List Tags is allowed by requirements). If missing, the tool falls back to setting
-> `externalIds.ENCOMPASS_DELETE_CANDIDATE="<timestamp>-<addressId>"` and logs a warning.
+> `externalIds.ENCOMPASS_DELETE_CANDIDATE="<timestamp><addressId>"` and logs a warning.

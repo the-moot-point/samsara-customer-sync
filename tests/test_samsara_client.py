@@ -99,9 +99,10 @@ def test_create_address_with_sanitized_external_ids(monkeypatch, client):
 
     assert result == {"id": "123"}
     sent = mock_req.call_args[1]["json_body"]
-    allowed = re.compile(r"^[A-Za-z0-9_.:-]+$")
-    assert all(allowed.match(k) for k in sent["externalIds"])
-    assert all(allowed.match(v) for v in sent["externalIds"].values())
+    allowed_keys = re.compile(r"^[A-Za-z0-9_.:-]+$")
+    allowed_vals = re.compile(r"^[A-Za-z0-9]+$")
+    assert all(allowed_keys.match(k) for k in sent["externalIds"])
+    assert all(allowed_vals.match(v) for v in sent["externalIds"].values())
 
 
 @pytest.mark.parametrize(

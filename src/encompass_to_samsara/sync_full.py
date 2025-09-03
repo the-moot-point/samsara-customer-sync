@@ -15,6 +15,7 @@ from .transform import (
     clean_external_ids,
     diff_address,
     read_encompass_csv,
+    sanitize_external_id_value,
     to_address_payload,
 )
 
@@ -357,7 +358,8 @@ def run_full(
             # fallback to externalIds marker
             ext2 = clean_external_ids(addr.get("externalIds") or {})
             if "encompass_delete_candidate" not in ext2:
-                marker = f"{now_utc_iso()[:19].replace(':', '').replace('-', '')}-{aid}"
+                marker_raw = f"{now_utc_iso()[:19].replace(':', '').replace('-', '')}-{aid}"
+                marker = sanitize_external_id_value(marker_raw)
                 patch = {"externalIds": ext2 | {"ENCOMPASS_DELETE_CANDIDATE": marker}}
                 if apply:
                     client.patch_address(aid, patch)
