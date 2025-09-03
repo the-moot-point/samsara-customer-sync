@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import logging
 
+import requests
+
 from .matcher import index_addresses_by_external_id
 from .reporting import Action, ensure_out_dir, summarize, write_csv, write_jsonl
 from .safety import eligible_for_hard_delete, is_managed, is_warehouse, load_warehouses, now_utc_iso
-from .samsara_client import SamsaraClient
+from .samsara_client import ExternalIdConflictError, SamsaraClient
 from .state import load_state, save_state
 from .tags import CANDIDATE_DELETE_TAG, MANAGED_BY_TAG, build_tag_index, resolve_tag_id
 from .transform import (
@@ -28,15 +30,29 @@ def run_daily(
     apply: bool,
     retention_days: int,
     confirm_delete: bool,
+    progress: bool | None = None,
 ) -> None:
     ensure_out_dir(out_dir)
     actions: list[Action] = []
+    dup_rows: list[dict] = []
+    errors_rows: list[dict] = []
 
     state_path = f"{out_dir.rstrip('/')}/state.json"
     state = load_state(state_path)
 
     # Read inputs
     rows = read_encompass_csv(encompass_delta)
+    total = len(rows)
+    use_progress = bool(progress)
+    try:
+        from tqdm.auto import tqdm
+    except Exception:  # pragma: no cover - import guard
+        use_progress = False
+    iterable = (
+        tqdm(rows, total=total, unit="row", desc="Daily sync", dynamic_ncols=True, leave=False)
+        if use_progress
+        else rows
+    )
 
     # Fetch tags and addresses
     tags_index = build_tag_index(client)
@@ -49,7 +65,8 @@ def run_daily(
     # Warehouses
     wh_ids, wh_names = load_warehouses(warehouses_path)
 
-    for r in rows:
+    error_count = 0
+    for r in iterable:
         action = (r.action or "upsert").lower()
         if r.status.strip().upper() == "INACTIVE" and action != "delete":
             actions.append(
@@ -173,20 +190,68 @@ def run_daily(
                 continue
             diff = diff_address(existing, desired)
             if diff:
+                aid = str(existing.get("id"))
                 if apply:
-                    client.patch_address(str(existing.get("id")), diff)
-                actions.append(
-                    Action(
-                        at=now_utc_iso(),
-                        kind="update",
-                        address_id=str(existing.get("id")),
-                        encompass_id=r.encompass_id,
-                        reason="delta_update",
-                        payload=diff,
-                        diff=diff,
+                    try:
+                        client.patch_address(aid, diff)
+                    except ExternalIdConflictError:
+                        actions.append(
+                            Action(
+                                at=now_utc_iso(),
+                                kind="error",
+                                address_id=aid,
+                                encompass_id=r.encompass_id,
+                                reason="update_duplicate_external_id",
+                            )
+                        )
+                        dup_rows.append(
+                            {
+                                "type": "samsara_duplicate",
+                                "encompass_id": r.encompass_id,
+                                "count": 2,
+                            }
+                        )
+                        error_count += 1
+                    except requests.HTTPError as e:
+                        actions.append(
+                            Action(
+                                at=now_utc_iso(),
+                                kind="error",
+                                address_id=aid,
+                                encompass_id=r.encompass_id,
+                                reason="update_http_error",
+                            )
+                        )
+                        errors_rows.append(
+                            {"error": f"patch_failed: {e}", "row_name": r.name}
+                        )
+                        error_count += 1
+                    else:
+                        actions.append(
+                            Action(
+                                at=now_utc_iso(),
+                                kind="update",
+                                address_id=aid,
+                                encompass_id=r.encompass_id,
+                                reason="delta_update",
+                                payload=diff,
+                                diff=diff,
+                            )
+                        )
+                        state["fingerprints"][aid] = desired_fp
+                else:
+                    actions.append(
+                        Action(
+                            at=now_utc_iso(),
+                            kind="update",
+                            address_id=aid,
+                            encompass_id=r.encompass_id,
+                            reason="delta_update",
+                            payload=diff,
+                            diff=diff,
+                        )
                     )
-                )
-                state["fingerprints"][str(existing.get("id"))] = desired_fp
+                    state["fingerprints"][aid] = desired_fp
             else:
                 actions.append(
                     Action(
@@ -199,26 +264,65 @@ def run_daily(
                 )
         else:
             if apply:
-                created = client.create_address(desired)
-                aid = str(created.get("id") or "")
+                try:
+                    created = client.create_address(desired)
+                except requests.HTTPError as e:
+                    actions.append(
+                        Action(
+                            at=now_utc_iso(),
+                            kind="error",
+                            address_id=None,
+                            encompass_id=r.encompass_id,
+                            reason="create_http_error",
+                        )
+                    )
+                    errors_rows.append(
+                        {"error": f"create_failed: {e}", "row_name": r.name}
+                    )
+                    error_count += 1
+                    aid = None
+                else:
+                    aid = str(created.get("id") or "")
+                    actions.append(
+                        Action(
+                            at=now_utc_iso(),
+                            kind="create",
+                            address_id=aid,
+                            encompass_id=r.encompass_id,
+                            reason="delta_create",
+                            payload=desired,
+                        )
+                    )
+                    if aid:
+                        state["fingerprints"][aid] = desired_fp
             else:
                 aid = None
-            actions.append(
-                Action(
-                    at=now_utc_iso(),
-                    kind="create",
-                    address_id=aid,
-                    encompass_id=r.encompass_id,
-                    reason="delta_create",
-                    payload=desired,
+                actions.append(
+                    Action(
+                        at=now_utc_iso(),
+                        kind="create",
+                        address_id=aid,
+                        encompass_id=r.encompass_id,
+                        reason="delta_create",
+                        payload=desired,
+                    )
                 )
+                if aid:
+                    state["fingerprints"][aid] = desired_fp
+
+        if use_progress:
+            iterable.set_postfix_str(
+                f"creates={sum(1 for a in actions if a.kind=='create')} "
+                f"updates={sum(1 for a in actions if a.kind=='update')} errs={error_count}"
             )
-            if aid:
-                state["fingerprints"][aid] = desired_fp
 
     # Write outputs
     write_jsonl(f"{out_dir}/actions.jsonl", actions)
     summary = summarize(actions)
     report_rows = [{"metric": k, "value": v} for k, v in sorted(summary.items())]
     write_csv(f"{out_dir}/sync_report.csv", report_rows, ["metric", "value"])
+    if dup_rows:
+        write_csv(f"{out_dir}/duplicates.csv", dup_rows, ["type", "encompass_id", "count"])
+    if errors_rows:
+        write_csv(f"{out_dir}/errors.csv", errors_rows, ["error", "row_name"])
     save_state(state_path, state)

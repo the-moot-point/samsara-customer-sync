@@ -3,6 +3,7 @@ requests>=2.32.3
 python-dotenv>=1.0.1
 PyYAML>=6.0.2
 pytz>=2024.1
+tqdm>=4.66
 pytest>=8.1.1
 responses>=0.25.3
 ruff>=0.5.7
