@@ -6,7 +6,10 @@ from unittest.mock import Mock
 import pytest
 import requests
 
-from encompass_to_samsara.samsara_client import SamsaraClient
+from encompass_to_samsara.samsara_client import (
+    ExternalIdConflictError,
+    SamsaraClient,
+)
 
 
 def make_response(status_code: int, json_body=None, headers=None):
@@ -137,3 +140,15 @@ def test_min_interval_throttle(monkeypatch, method_name, args, min_interval):
 
     assert len(sleep_calls) == 1
     assert sleep_calls[0] == pytest.approx(min_interval)
+
+
+def test_patch_address_duplicate_external_id_raises_typed(monkeypatch, client):
+    resp = make_response(
+        400,
+        {"message": "Duplicate external id value already exists: XYZ", "requestId": "req-1"},
+    )
+    mock_req = Mock(return_value=resp)
+    monkeypatch.setattr(client, "request", mock_req)
+
+    with pytest.raises(ExternalIdConflictError):
+        client.patch_address("1", {"name": "x"})

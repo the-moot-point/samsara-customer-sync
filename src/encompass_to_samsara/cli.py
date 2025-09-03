@@ -57,6 +57,12 @@ def cli(ctx: click.Context, api_rate_config: str | None) -> None:
 @click.option("--retention-days", default=30, show_default=True, type=int)
 @click.option("--confirm-delete", is_flag=True, help="Allow hard deletes after retention window.")
 @click.option("--apply", is_flag=True, help="Apply changes. Without this flag, dry-run only.")
+@click.option(
+    "--progress/--no-progress",
+    default=True,
+    show_default=True,
+    help="Show a progress bar during processing.",
+)
 @click.pass_context
 def full_cmd(
     ctx: click.Context,
@@ -67,6 +73,7 @@ def full_cmd(
     retention_days: int,
     confirm_delete: bool,
     apply: bool,
+    progress: bool,
 ) -> None:
     client = SamsaraClient(rate_limits=ctx.obj.get("rate_limits"))
     # Dispatch directly to run_full. All action handling occurs inside run_full
@@ -81,6 +88,7 @@ def full_cmd(
         apply=apply,
         retention_days=retention_days,
         confirm_delete=confirm_delete,
+        progress=progress,
     )
 
 
@@ -97,6 +105,12 @@ def full_cmd(
 @click.option("--retention-days", default=30, show_default=True, type=int)
 @click.option("--confirm-delete", is_flag=True, help="Allow hard deletes after retention window.")
 @click.option("--apply", is_flag=True, help="Apply changes. Without this flag, dry-run only.")
+@click.option(
+    "--progress/--no-progress",
+    default=True,
+    show_default=True,
+    help="Show a progress bar during processing.",
+)
 @click.pass_context
 def daily_cmd(
     ctx: click.Context,
@@ -107,6 +121,7 @@ def daily_cmd(
     retention_days: int,
     confirm_delete: bool,
     apply: bool,
+    progress: bool,
 ) -> None:
     client = SamsaraClient(rate_limits=ctx.obj.get("rate_limits"))
     run_daily(
@@ -118,6 +133,7 @@ def daily_cmd(
         apply=apply,
         retention_days=retention_days,
         confirm_delete=confirm_delete,
+        progress=progress,
     )
 
 

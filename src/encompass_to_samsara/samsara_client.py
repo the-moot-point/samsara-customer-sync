@@ -25,6 +25,10 @@ class RetryConfig:
     max_delay: float = 30.0  # seconds
 
 
+class ExternalIdConflictError(requests.HTTPError):
+    """Raised when a duplicate external ID is detected on update."""
+
+
 class SamsaraClient:
     """
     Thin API client with automatic retries/backoff and pagination helpers.
@@ -244,7 +248,33 @@ class SamsaraClient:
 
     def patch_address(self, addr_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         r = self.request("PATCH", f"/addresses/{addr_id}", json_body=payload)
-        r.raise_for_status()
+        try:
+            r.raise_for_status()
+        except requests.HTTPError as e:
+            try:
+                data = r.json()
+            except ValueError:
+                data = {}
+            message = data.get("message") or ""
+            request_id = data.get("requestId")
+            if (
+                r.status_code == 400
+                and "Duplicate external id value already exists" in message
+            ):
+                raise ExternalIdConflictError(message, response=r) from e
+            details = ", ".join(
+                f"{k}: {v}" for k, v in (("message", message), ("requestId", request_id)) if v
+            )
+            LOG.error(
+                "Failed to patch address id=%s payload=%s response=%s",
+                addr_id,
+                payload,
+                data,
+            )
+            msg = str(e)
+            if details:
+                msg = f"{msg} ({details})"
+            raise requests.HTTPError(msg, response=r) from e
         return r.json()
 
     def delete_address(self, addr_id: str) -> None:

@@ -273,3 +273,82 @@ def test_actions_radius_meters_int(tmp_path, token_env, base_responses):
     create_act = next(a for a in acts if a["kind"] == "create")
     radius = create_act["payload"]["geofence"]["circle"]["radiusMeters"]
     assert isinstance(radius, int)
+
+
+def test_full_continues_after_patch_error(tmp_path, token_env, base_responses):
+    source_rows = [
+        {
+            "Customer ID": "C1",
+            "Customer Name": "Foo",
+            "Account Status": "Active",
+            "Latitude": "30.1",
+            "Longitude": "-97.7",
+            "Report Address": "123 A St",
+            "Location": "Austin",
+            "Company": "JECO",
+            "Customer Type": "Retail",
+        },
+        {
+            "Customer ID": "C2",
+            "Customer Name": "Bar",
+            "Account Status": "Active",
+            "Latitude": "30.2",
+            "Longitude": "-97.8",
+            "Report Address": "456 B St",
+            "Location": "Austin",
+            "Company": "JECO",
+            "Customer Type": "Retail",
+        },
+    ]
+    src_csv = tmp_path / "encompass_full.csv"
+    write_csv(src_csv, source_rows)
+
+    wh_csv = tmp_path / "warehouses.csv"
+    with open(wh_csv, "w", encoding="utf-8") as f:
+        f.write("samsara_id,name\n")
+
+    out_dir = tmp_path / "out"
+
+    samsara_addresses = [
+        {
+            "id": "100",
+            "name": "OldFoo",
+            "formattedAddress": "123 A St",
+            "externalIds": {"EncompassId": "C1"},
+        }
+    ]
+
+    with base_responses as rsps:
+        rsps.add(
+            responses.GET, f"{API}/addresses", json={"addresses": samsara_addresses}, status=200
+        )
+        rsps.add(
+            responses.PATCH,
+            f"{API}/addresses/100",
+            json={
+                "message": "Duplicate external id value already exists: XYZ",
+                "requestId": "req-1",
+            },
+            status=400,
+        )
+        rsps.add(responses.POST, f"{API}/addresses", json={"id": "201"}, status=200)
+
+        client = SamsaraClient(api_token="test-token")
+        run_full(
+            client,
+            encompass_csv=str(src_csv),
+            warehouses_path=str(wh_csv),
+            out_dir=str(out_dir),
+            radius_m=50,
+            apply=True,
+            retention_days=30,
+            confirm_delete=False,
+        )
+
+    with open(out_dir / "actions.jsonl", encoding="utf-8") as f:
+        acts = [json.loads(line) for line in f]
+    assert any(a["kind"] == "error" and a.get("reason") == "update_duplicate_external_id" for a in acts)
+    assert any(a["kind"] == "create" for a in acts)
+    with open(out_dir / "duplicates.csv", encoding="utf-8") as f:
+        dup_lines = f.read()
+    assert "C1" in dup_lines
