@@ -4,8 +4,8 @@ import csv
 import hashlib
 import logging
 import re
-from datetime import datetime
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 LOG = logging.getLogger(__name__)
@@ -364,7 +364,10 @@ def diff_address(existing: dict, desired: dict) -> dict:
     # geofence (compare circle lat/lon and radius)
     e_geo = normalize_geofence(existing.get("geofence")) or {}
     d_geo = normalize_geofence(desired.get("geofence")) or {}
-    skip_geofence = bool((existing.get("geofence") or {}).get("polygon")) or _has_updated_geofence_tag(existing)
+    skip_geofence = (
+        bool((existing.get("geofence") or {}).get("polygon"))
+        or _has_updated_geofence_tag(existing)
+    )
     if not skip_geofence:
         if bool(d_geo) != bool(e_geo):
             patch["geofence"] = d_geo or None

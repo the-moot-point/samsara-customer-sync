@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 
 from encompass_to_samsara.sync_daily import run_daily
@@ -38,7 +37,18 @@ def write_csv(path: Path, rows):
 
 def test_delete_direct_when_retention_zero(tmp_path, monkeypatch):
     delta_rows = [
-        {"Customer ID": "C1", "Customer Name": "Foo", "Account Status": "Active", "Latitude": "30", "Longitude": "-97", "Report Address": "123", "Location": "Austin", "Company": "JECO", "Customer Type": "Retail", "Action": "delete"}
+        {
+            "Customer ID": "C1",
+            "Customer Name": "Foo",
+            "Account Status": "Active",
+            "Latitude": "30",
+            "Longitude": "-97",
+            "Report Address": "123",
+            "Location": "Austin",
+            "Company": "JECO",
+            "Customer Type": "Retail",
+            "Action": "delete",
+        }
     ]
     d_csv = tmp_path / "delta.csv"
     write_csv(d_csv, delta_rows)
@@ -66,7 +76,18 @@ def test_delete_direct_when_retention_zero(tmp_path, monkeypatch):
 
 def test_mark_delete_with_retention(tmp_path, monkeypatch):
     delta_rows = [
-        {"Customer ID": "C1", "Customer Name": "Foo", "Account Status": "Active", "Latitude": "30", "Longitude": "-97", "Report Address": "123", "Location": "Austin", "Company": "JECO", "Customer Type": "Retail", "Action": "delete"}
+        {
+            "Customer ID": "C1",
+            "Customer Name": "Foo",
+            "Account Status": "Active",
+            "Latitude": "30",
+            "Longitude": "-97",
+            "Report Address": "123",
+            "Location": "Austin",
+            "Company": "JECO",
+            "Customer Type": "Retail",
+            "Action": "delete",
+        }
     ]
     d_csv = tmp_path / "delta.csv"
     write_csv(d_csv, delta_rows)

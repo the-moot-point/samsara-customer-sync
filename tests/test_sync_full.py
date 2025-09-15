@@ -347,7 +347,10 @@ def test_full_continues_after_patch_error(tmp_path, token_env, base_responses):
 
     with open(out_dir / "actions.jsonl", encoding="utf-8") as f:
         acts = [json.loads(line) for line in f]
-    assert any(a["kind"] == "error" and a.get("reason") == "update_duplicate_external_id" for a in acts)
+    assert any(
+        a["kind"] == "error" and a.get("reason") == "update_duplicate_external_id"
+        for a in acts
+    )
     assert any(a["kind"] == "create" for a in acts)
     with open(out_dir / "duplicates.csv", encoding="utf-8") as f:
         dup_lines = f.read()

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import json
 import logging
 import os
-import json
 
 import click
 from dotenv import load_dotenv

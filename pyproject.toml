@@ -29,5 +29,7 @@ sync-e2s = "encompass_to_samsara.cli:main"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-select = ["E","F","I","UP","B"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
 fix = true

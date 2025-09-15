@@ -1,5 +1,7 @@
 import json
+
 from click.testing import CliRunner
+
 from encompass_to_samsara.cli import cli
 
 
