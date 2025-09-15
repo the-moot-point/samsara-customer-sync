@@ -28,7 +28,9 @@ def write_csv(path, rows):
         (run_daily, "encompass_delta"),
     ],
 )
-def test_actions_jsonl_geofence_always_circle(tmp_path, token_env, base_responses, sync_func, src_arg):
+def test_actions_jsonl_geofence_always_circle(
+    tmp_path, token_env, base_responses, sync_func, src_arg
+):
     row = {
         "Customer ID": "C1",
         "Customer Name": "Foo",

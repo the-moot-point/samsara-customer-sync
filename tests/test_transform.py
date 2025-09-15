@@ -1,17 +1,17 @@
 import re
 
+from encompass_to_samsara.tags import build_tag_index
 from encompass_to_samsara.transform import (
     SourceRow,
+    clean_external_ids,
     compute_fingerprint,
     diff_address,
-    clean_external_ids,
     normalize,
+    normalize_geofence,
     sanitize_external_id_value,
     to_address_payload,
     validate_lat_lon,
-    normalize_geofence,
 )
-from encompass_to_samsara.tags import build_tag_index
 
 
 def test_normalize_and_fingerprint_stability():
