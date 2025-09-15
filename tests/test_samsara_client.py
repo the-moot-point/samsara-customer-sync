@@ -69,6 +69,64 @@ def test_list_addresses_cursor_pagination(monkeypatch, client):
     assert mock_req.call_args_list[1][1]["params"]["after"] == "abc"
 
 
+def test_list_drivers_pagination(monkeypatch, client):
+    r1 = make_response(
+        200,
+        {
+            "data": [{"id": "d1"}],
+            "pagination": {"after": "cursor-1"},
+        },
+    )
+    r2 = make_response(200, {"data": [{"id": "d2"}], "pagination": {}})
+
+    mock_req = Mock(side_effect=[r1, r2])
+    monkeypatch.setattr(requests.Session, "request", mock_req)
+
+    items = client.list_drivers("active", limit=1)
+
+    assert items == [{"id": "d1"}, {"id": "d2"}]
+    assert mock_req.call_count == 2
+    first_params = mock_req.call_args_list[0][1]["params"]
+    second_params = mock_req.call_args_list[1][1]["params"]
+    assert first_params["status"] == "active"
+    assert "after" not in first_params
+    assert second_params["after"] == "cursor-1"
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"data": [{"id": "d1"}]},
+        {"drivers": [{"id": "d1"}]},
+    ],
+)
+def test_list_drivers_response_shapes(monkeypatch, client, payload):
+    mock_req = Mock(return_value=make_response(200, payload))
+    monkeypatch.setattr(requests.Session, "request", mock_req)
+
+    items = client.list_drivers("deactivated")
+
+    assert items == [{"id": "d1"}]
+
+
+def test_list_all_drivers_union(monkeypatch, client):
+    mock_list = Mock(side_effect=[[{"id": "d1"}, {"id": "d2"}], [{"id": "d2"}, {"id": "d3"}]])
+    monkeypatch.setattr(client, "list_drivers", mock_list)
+
+    items = client.list_all_drivers()
+
+    assert items == [{"id": "d1"}, {"id": "d2"}, {"id": "d3"}]
+
+
+def test_get_driver_404(monkeypatch, client):
+    mock_req = Mock(return_value=make_response(404))
+    monkeypatch.setattr(requests.Session, "request", mock_req)
+
+    result = client.get_driver("driver-1")
+
+    assert result is None
+
+
 def test_create_address_error_logging(monkeypatch, client, caplog):
     payload = {"name": "foo"}
     resp = make_response(400, {"message": "Invalid address", "requestId": "req-123"})
