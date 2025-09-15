@@ -6,6 +6,7 @@ from unittest.mock import Mock
 import pytest
 import requests
 
+from encompass_to_samsara.driver_transform import compute_paycom_fingerprint
 from encompass_to_samsara.samsara_client import (
     ExternalIdConflictError,
     InvalidExternalIdKeyError,
@@ -125,6 +126,38 @@ def test_get_driver_404(monkeypatch, client):
     result = client.get_driver("driver-1")
 
     assert result is None
+
+
+def test_create_driver_applies_transform(monkeypatch, client):
+    payload = {"Employee_Code": "E-1", "firstName": "Test"}
+    mock_req = Mock(return_value=make_response(200, {"id": "driver-1"}))
+    monkeypatch.setattr(client, "request", mock_req)
+
+    result = client.create_driver(payload)
+
+    assert result == {"id": "driver-1"}
+    assert mock_req.call_args[0] == ("POST", "/fleet/drivers")
+    sent = mock_req.call_args.kwargs["json_body"]
+    assert sent["externalIds"]["employeeCode"] == "E-1"
+    assert sent["externalIds"]["paycom_fingerprint"] == compute_paycom_fingerprint(payload)
+    assert "Employee_Code" not in sent
+
+
+def test_patch_driver_uses_fingerprint_source(monkeypatch, client):
+    payload = {"preferredName": "Rosa"}
+    source = {"Employee_Code": "E-99", "preferredName": "Rosa", "status": "Active"}
+    mock_req = Mock(return_value=make_response(200, {"id": "driver-99"}))
+    monkeypatch.setattr(client, "request", mock_req)
+
+    result = client.patch_driver("driver-99", payload, fingerprint_source=source)
+
+    assert result == {"id": "driver-99"}
+    assert mock_req.call_args[0] == ("PATCH", "/fleet/drivers/driver-99")
+    sent = mock_req.call_args.kwargs["json_body"]
+    assert sent["preferredName"] == "Rosa"
+    assert sent["externalIds"]["employeeCode"] == "E-99"
+    assert sent["externalIds"]["paycom_fingerprint"] == compute_paycom_fingerprint(source)
+    assert "Employee_Code" not in sent
 
 
 def test_create_address_error_logging(monkeypatch, client, caplog):

@@ -5,12 +5,13 @@ import os
 import random
 import time
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any, Literal, Mapping
 
 import requests
 
-LOG = logging.getLogger(__name__)
+from .driver_transform import transform_driver_payload
 
+LOG = logging.getLogger(__name__)
 
 def _utc_ts() -> str:
     import datetime
@@ -288,13 +289,26 @@ class SamsaraClient:
             return data
         return None
 
-    def create_driver(self, payload: dict[str, Any]) -> dict[str, Any]:
-        r = self.request("POST", "/fleet/drivers", json_body=payload)
+    def create_driver(
+        self,
+        payload: Mapping[str, Any],
+        *,
+        fingerprint_source: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        body = transform_driver_payload(payload, fingerprint_source=fingerprint_source)
+        r = self.request("POST", "/fleet/drivers", json_body=body)
         r.raise_for_status()
         return r.json()
 
-    def patch_driver(self, id_or_external: str, payload: dict[str, Any]) -> dict[str, Any]:
-        r = self.request("PATCH", f"/fleet/drivers/{id_or_external}", json_body=payload)
+    def patch_driver(
+        self,
+        id_or_external: str,
+        payload: Mapping[str, Any],
+        *,
+        fingerprint_source: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        body = transform_driver_payload(payload, fingerprint_source=fingerprint_source)
+        r = self.request("PATCH", f"/fleet/drivers/{id_or_external}", json_body=body)
         r.raise_for_status()
         return r.json()
 
