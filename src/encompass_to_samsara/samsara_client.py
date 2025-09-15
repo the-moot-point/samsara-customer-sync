@@ -5,7 +5,7 @@ import os
 import random
 import time
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 import requests
 
@@ -223,6 +223,80 @@ class SamsaraClient:
             if not page_token:
                 break
         return out
+
+    def list_drivers(
+        self, status: Literal["active", "deactivated"], limit: int = 200
+    ) -> list[dict[str, Any]]:
+        """Iterate through drivers filtered by status, handling pagination."""
+
+        out: list[dict[str, Any]] = []
+        page_token: str | None = None
+        while True:
+            params: dict[str, Any] = {"limit": limit, "status": status}
+            if page_token:
+                params["after"] = page_token
+            r = self.request("GET", "/fleet/drivers", params=params)
+            r.raise_for_status()
+            data = r.json()
+            items = data.get("data") or data.get("drivers") or data
+            if isinstance(items, dict):
+                items = items.get("drivers")
+            if not isinstance(items, list):
+                items = []
+            out.extend(items)
+
+            pagination = data.get("pagination") or {}
+            page_token = (
+                pagination.get("after")
+                or pagination.get("nextPageToken")
+                or data.get("nextPageToken")
+            )
+            if not page_token:
+                break
+        return out
+
+    def list_all_drivers(self) -> list[dict[str, Any]]:
+        """Return union of active and deactivated drivers."""
+
+        combined: list[dict[str, Any]] = []
+        seen_ids: set[Any] = set()
+        for driver in self.list_drivers("active") + self.list_drivers("deactivated"):
+            if not isinstance(driver, dict):
+                combined.append(driver)
+                continue
+            driver_id = driver.get("id")
+            if driver_id and driver_id in seen_ids:
+                continue
+            if driver_id:
+                seen_ids.add(driver_id)
+            combined.append(driver)
+        return combined
+
+    def get_driver(self, id_or_external: str) -> dict[str, Any] | None:
+        r = self.request("GET", f"/fleet/drivers/{id_or_external}")
+        if r.status_code == 404:
+            return None
+        r.raise_for_status()
+        try:
+            data = r.json()
+        except ValueError:
+            return None
+        if isinstance(data, dict):
+            nested = data.get("data") or data.get("driver")
+            if isinstance(nested, dict):
+                return nested
+            return data
+        return None
+
+    def create_driver(self, payload: dict[str, Any]) -> dict[str, Any]:
+        r = self.request("POST", "/fleet/drivers", json_body=payload)
+        r.raise_for_status()
+        return r.json()
+
+    def patch_driver(self, id_or_external: str, payload: dict[str, Any]) -> dict[str, Any]:
+        r = self.request("PATCH", f"/fleet/drivers/{id_or_external}", json_body=payload)
+        r.raise_for_status()
+        return r.json()
 
     def get_address(self, addr_id: str) -> dict[str, Any]:
         r = self.request("GET", f"/addresses/{addr_id}")

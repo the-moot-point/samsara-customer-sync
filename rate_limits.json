@@ -1,0 +1,12 @@
+{
+  "min_interval": 0.2,
+  "GET /addresses": 3,
+  "POST /addresses": 1,
+  "PATCH /addresses/{id}": 1,
+  "DELETE /addresses/{id}": 1,
+  "GET /tags": 3,
+  "GET /fleet/drivers": 3,
+  "GET /fleet/drivers/{id}": 3,
+  "POST /fleet/drivers": 1,
+  "PATCH /fleet/drivers/{id}": 1
+}
