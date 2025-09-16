@@ -18,7 +18,12 @@ def _write_csv(tmp_path: Path, name: str, content: str) -> Path:
 
 
 def test_load_timezone_map_normalizes_and_validates(tmp_path: Path) -> None:
-    csv_content = """Driver Name,Timezone\n  Jane   Doe  ,America/Chicago\nJohn Smith,Invalid/Zone\n,America/New_York\n"""
+    csv_content = (
+        "Driver Name,Timezone\n"
+        "  Jane   Doe  ,America/Chicago\n"
+        "John Smith,Invalid/Zone\n"
+        ",America/New_York\n"
+    )
     path = _write_csv(tmp_path, "timezone_map.csv", csv_content)
 
     mapping = load_timezone_map(path)
@@ -30,7 +35,11 @@ def test_load_timezone_map_normalizes_and_validates(tmp_path: Path) -> None:
 
 
 def test_load_peer_groups_trims_names_and_values(tmp_path: Path) -> None:
-    csv_content = """Name,Peer Group\n Alice   Example ,  Group A  \nBob Example,Group B\n"""
+    csv_content = (
+        "Name,Peer Group\n"
+        " Alice   Example ,  Group A  \n"
+        "Bob Example,Group B\n"
+    )
     path = _write_csv(tmp_path, "peer_groups.csv", csv_content)
 
     mapping = load_peer_groups(path)
@@ -42,7 +51,11 @@ def test_load_peer_groups_trims_names_and_values(tmp_path: Path) -> None:
 
 
 def test_load_driver_tags_normalizes_metadata(tmp_path: Path) -> None:
-    csv_content = """Full Name,TagIds,License_State,Hire_Date\n Ann   Example ,3 | 2 | 3,tx,1/2/2023\nBob Example,,Texas,13/40/2020\n"""
+    csv_content = (
+        "Full Name,TagIds,License_State,Hire_Date\n"
+        " Ann   Example ,3 | 2 | 3,tx,1/2/2023\n"
+        "Bob Example,,Texas,13/40/2020\n"
+    )
     path = _write_csv(tmp_path, "driver_tags.csv", csv_content)
 
     mapping = load_driver_tags(path)
@@ -57,8 +70,16 @@ def test_load_driver_tags_normalizes_metadata(tmp_path: Path) -> None:
 
 
 def test_merge_driver_metadata_defaults_missing_fields(tmp_path: Path) -> None:
-    tz_path = _write_csv(tmp_path, "timezone_map.csv", "Driver,Timezone\nJane Doe,America/Chicago\n")
-    groups_path = _write_csv(tmp_path, "peer_groups.csv", "Driver,Peer Group\nJane Doe,Group 1\n")
+    tz_path = _write_csv(
+        tmp_path,
+        "timezone_map.csv",
+        "Driver,Timezone\nJane Doe,America/Chicago\n",
+    )
+    groups_path = _write_csv(
+        tmp_path,
+        "peer_groups.csv",
+        "Driver,Peer Group\nJane Doe,Group 1\n",
+    )
     tags_path = _write_csv(
         tmp_path,
         "driver_tags.csv",

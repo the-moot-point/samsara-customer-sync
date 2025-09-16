@@ -3,13 +3,12 @@ from __future__ import annotations
 import csv
 import logging
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Sequence
 
 import pytz
-
 
 LOG = logging.getLogger(__name__)
 
@@ -204,9 +203,15 @@ def load_driver_tags(path: str | Path) -> dict[str, DriverTags]:
             if not key:
                 continue
             tag_ids = _parse_tag_ids(row.get(tags_field))
-            license_state = _normalize_license_state(row.get(license_field)) if license_field else ""
+            license_state = (
+                _normalize_license_state(row.get(license_field)) if license_field else ""
+            )
             hire_date = _parse_hire_date(row.get(hire_field)) if hire_field else ""
-            mapping[key] = DriverTags(tagIds=tag_ids, licenseState=license_state, hireDate=hire_date)
+            mapping[key] = DriverTags(
+                tagIds=tag_ids,
+                licenseState=license_state,
+                hireDate=hire_date,
+            )
     return mapping
 
 

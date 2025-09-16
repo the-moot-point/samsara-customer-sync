@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Mapping, Sequence
-from typing import Any, Iterable
+from collections.abc import Iterable, Mapping, Sequence
+from typing import Any
 
 from .transform import clean_external_ids
 
@@ -37,7 +37,7 @@ def _normalize_for_hash(value: Any) -> Any:
             str(k): _normalize_for_hash(v)
             for k, v in sorted(value.items(), key=lambda item: str(item[0]))
         }
-    if isinstance(value, Sequence) and not isinstance(value, (bytes, bytearray)):
+    if isinstance(value, Sequence) and not isinstance(value, bytes | bytearray):
         return [_normalize_for_hash(v) for v in value]
     return value
 
