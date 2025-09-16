@@ -145,4 +145,7 @@ def test_sync_patches_when_fingerprint_changes(
     assert any(a["kind"] == "update" for a in actions)
     update_payloads = [a["payload"] for a in actions if a.get("kind") == "update"]
     assert any(p["externalIds"]["fingerprint"] == expected_fp for p in update_payloads)
-    assert any(p["formattedAddress"] == sample_encompass_row["Report Address"] for p in update_payloads)
+    assert any(
+        p["formattedAddress"] == sample_encompass_row["Report Address"]
+        for p in update_payloads
+    )

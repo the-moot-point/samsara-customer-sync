@@ -8,6 +8,7 @@ from .transform import normalize
 LOG = logging.getLogger(__name__)
 
 MANAGED_BY_TAG = "ManagedBy:EncompassSync"
+MANAGED_BY_DRIVER_TAG = "ManagedBy:DriverSync"
 CANDIDATE_DELETE_TAG = "CandidateDelete"
 
 
